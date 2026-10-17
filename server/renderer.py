@@ -65,11 +65,33 @@ class Renderer:
                 raise ValueError("events count and row_height must be positive integers")
             title_font = ImageFont.load_default(size=block.get("title_size", 24))
             detail_font = ImageFont.load_default(size=block.get("detail_size", 18))
+            max_width = block.get("max_width")
+            if max_width is not None and (not isinstance(max_width, int) or max_width < 1):
+                raise ValueError("events max_width must be a positive integer")
             for index, event in enumerate(events[:count]):
                 row_y = y + index * row_height
                 title = str(event.get("title", "(Untitled event)"))
                 details = " · ".join(str(event.get(field, "")) for field in ("date", "time") if event.get(field))
+                if max_width is not None:
+                    title = Renderer._truncate_text(draw, title, title_font, max_width)
+                    details = Renderer._truncate_text(draw, details, detail_font, max_width)
                 draw.text((x, row_y), title, font=title_font, fill=0)
                 draw.text((x, row_y + title_font.size + 2), details, font=detail_font, fill=0)
         else:
             raise ValueError(f"unsupported layout block type: {kind!r}")
+
+    @staticmethod
+    def _truncate_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> str:
+        if draw.textlength(value, font=font) <= max_width:
+            return value
+        ellipsis = "..."
+        if draw.textlength(ellipsis, font=font) > max_width:
+            return ""
+        low, high = 0, len(value)
+        while low < high:
+            middle = (low + high + 1) // 2
+            if draw.textlength(value[:middle] + ellipsis, font=font) <= max_width:
+                low = middle
+            else:
+                high = middle - 1
+        return value[:low] + ellipsis

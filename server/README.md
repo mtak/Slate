@@ -38,7 +38,7 @@ The layout supports these block types:
 | `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
-| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`. |
+| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`; optional `max_width` clips text with `...` at that many pixels. |
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
 a 42-pixel font:
