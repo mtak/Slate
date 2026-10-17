@@ -1,9 +1,9 @@
 # Data providers
 
 Slate providers fetch or supply data for the server renderer. Configure the
-active provider with `SLATE_PROVIDER`; the default is `sample`.
+calendar data source with `SLATE_CALENDAR_PROVIDER`; the default is `sample`.
 
-| Provider | `SLATE_PROVIDER` | Setup guide | Credentials |
+| Provider | `SLATE_CALENDAR_PROVIDER` | Setup guide | Credentials |
 | --- | --- | --- | --- |
 | Sample data | `sample` | [Sample provider](sample.md) | None |
 | Google Calendar iCal feed | `ical` | [Google Calendar iCal feed](google-calendar-ical.md) | Secret HTTPS feed URL in local `.env` |

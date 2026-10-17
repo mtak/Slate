@@ -46,7 +46,7 @@ class ICalendarProvider:
 
     def __init__(self, url: str, timezone: str, max_results: int = 6, days_ahead: int = 14):
         if not url.startswith("https://"):
-            raise ValueError("SLATE_ICAL_URL must use HTTPS")
+            raise ValueError("SLATE_CALENDAR_ICAL_URL must use HTTPS")
         self.url = url
         self.timezone = ZoneInfo(timezone)
         self.max_results = max_results
@@ -95,15 +95,15 @@ class ICalendarProvider:
 
 def provider_from_environment():
     """Build the configured provider, validating required private settings."""
-    name = os.environ.get("SLATE_PROVIDER", "sample").lower()
+    name = os.environ.get("SLATE_CALENDAR_PROVIDER", "sample").lower()
     if name == "sample":
         return SampleProvider()
-    timezone = os.environ.get("SLATE_TIMEZONE", "UTC")
+    timezone = os.environ.get("TZ", "UTC")
     max_events = int(os.environ.get("SLATE_CALENDAR_MAX_EVENTS", "6"))
     days_ahead = int(os.environ.get("SLATE_CALENDAR_DAYS_AHEAD", "14"))
     if name == "ical":
-        url = os.environ.get("SLATE_ICAL_URL")
+        url = os.environ.get("SLATE_CALENDAR_ICAL_URL")
         if not url:
-            raise ValueError("SLATE_ICAL_URL is required when SLATE_PROVIDER=ical")
+            raise ValueError("SLATE_CALENDAR_ICAL_URL is required when SLATE_CALENDAR_PROVIDER=ical")
         return ICalendarProvider(url, timezone, max_events, days_ahead)
-    raise ValueError("SLATE_PROVIDER must be sample or ical")
+    raise ValueError("SLATE_CALENDAR_PROVIDER must be sample or ical")

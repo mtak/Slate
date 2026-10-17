@@ -8,7 +8,7 @@ is configured.
 To select it explicitly, set this in the local `.env` file:
 
 ```dotenv
-SLATE_PROVIDER=sample
+SLATE_CALENDAR_PROVIDER=sample
 ```
 
 The sample values are defined by `SampleProvider` in
