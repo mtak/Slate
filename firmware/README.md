@@ -21,6 +21,17 @@ Never put third-party integration credentials in firmware.
 
 ## Build and flash
 
+Run the hardware-independent firmware tests locally with one command:
+
+```sh
+make test
+```
+
+This target uses the system C++ compiler and does not require PlatformIO, an
+ESP32, an e-paper panel, network access, or credentials. It tests the frame
+format and diagnostic renderer. Pull requests run the same command in GitHub
+Actions.
+
 ```sh
 make build
 make upload PORT=/dev/ttyUSB0
