@@ -46,13 +46,13 @@ UID:weekly
 DTSTART:{start_text}
 DURATION:PT30M
 RRULE:FREQ=DAILY;COUNT=3
-SUMMARY:Household event
+SUMMARY:Example recurring event
 END:VEVENT
 BEGIN:VEVENT
 UID:all-day
 DTSTART;VALUE=DATE:{all_day}
 DTEND;VALUE=DATE:{(start + timedelta(days=2)).strftime('%Y%m%d')}
-SUMMARY:All day event
+SUMMARY:Example all-day event
 END:VEVENT
 END:VCALENDAR
 """.encode()
@@ -67,7 +67,8 @@ END:VCALENDAR
         self.assertEqual(data["greeting"], "Calendar")
         self.assertEqual(data["headline"], "Upcoming events")
         self.assertEqual([event["title"] for event in data["events"]], [
-            "Household event", "All day event", "Household event", "Household event",
+            "Example recurring event", "Example all-day event",
+            "Example recurring event", "Example recurring event",
         ])
         self.assertEqual(data["events"][1]["time"], "All day")
 

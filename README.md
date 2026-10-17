@@ -39,4 +39,5 @@ settings are recorded in the hardware notes.
 
 Examples use placeholders. Keep Wi-Fi credentials, device tokens, certificates,
 household data, and deployment-specific configuration in ignored local files or
-private deployment configuration. Review changes before publishing them.
+private deployment configuration. Before publishing changes, follow the
+[repository hygiene checklist](docs/repository-hygiene.md).

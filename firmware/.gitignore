@@ -2,3 +2,4 @@
 .pio/
 .platformio/
 include/slate_config.h
+server-ca.pem

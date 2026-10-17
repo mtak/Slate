@@ -6,7 +6,8 @@ renderer, browser preview, and firmware can be used before a live integration
 is configured. Keep `SLATE_CALENDAR_ICAL_URL` empty in `.env` to use sample
 data.
 
-The sample values are defined by `SampleProvider` in
-[`server/providers.py`](../../server/providers.py). They contain no household
-data. To try a live calendar, follow the
+The sample values are generic fictional examples defined by `SampleProvider`
+in [`server/providers.py`](../../server/providers.py). Replace them with
+fictional values when adapting the examples; never add real household events
+to committed files. To try a live calendar, follow the
 [Google Calendar iCal feed guide](google-calendar-ical.md).

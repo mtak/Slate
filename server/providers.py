@@ -28,9 +28,9 @@ class SampleProvider:
             "headline": "Today",
             "message": "Your sample display is ready.",
             "events": [
-                {"title": "Coffee with Alex", "date": "Today", "time": "10:30"},
-                {"title": "Pick up groceries", "date": "Today", "time": "17:00"},
-                {"title": "Family lunch", "date": "Tomorrow", "time": "12:00"},
+                {"title": "Example meeting", "date": "Today", "time": "10:30"},
+                {"title": "Example reminder", "date": "Today", "time": "17:00"},
+                {"title": "Example event", "date": "Tomorrow", "time": "12:00"},
             ],
         }
 
