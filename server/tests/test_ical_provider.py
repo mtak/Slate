@@ -91,7 +91,7 @@ class DailyAffirmationProviderTests(unittest.TestCase):
         first = provider.get_data()
 
         self.assertEqual(provider.get_data(), first)
-        self.assertEqual(provider.get_data()["affirmation_heading"], "Today's affirmation")
+        self.assertEqual(provider.get_data()["affirmation_heading"], "Listen b*tch")
         self.assertNotEqual(
             first["affirmation"],
             DailyAffirmationProvider(today=lambda: first_day + timedelta(days=1)).get_data()["affirmation"],
