@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
 
 #include "frame.h"
 #include "frame_diff.h"
@@ -43,6 +44,7 @@ constexpr uint32_t kWatchdogTimeoutSeconds = 60;
 constexpr uint32_t kReconnectInitialDelayMs = 1000;
 constexpr uint32_t kReconnectMaxDelayMs = 30000;
 constexpr uint32_t kWatchdogFeedIntervalMs = 1000;
+constexpr uint32_t kWatchdogDemoCountdownSeconds = 15;
 #if defined(SLATE_POLL_INTERVAL_SECONDS) && SLATE_POLL_INTERVAL_SECONDS > 0
 constexpr uint32_t kPollIntervalMs = SLATE_POLL_INTERVAL_SECONDS * 1000UL;
 #else
@@ -150,6 +152,38 @@ bool fetchFrame(bool comparePartial) {
 }
 
 void feedWatchdog() { esp_task_wdt_reset(); }
+
+void runWatchdogDemoIfEnabled() {
+#if defined(SLATE_WATCHDOG_DEMO)
+  const esp_reset_reason_t resetReason = esp_reset_reason();
+  if (resetReason == ESP_RST_TASK_WDT || resetReason == ESP_RST_PANIC) {
+    Serial.printf("Watchdog demo: reset reason %d detected; continuing startup without repeating stall\n",
+                  static_cast<int>(resetReason));
+    return;
+  }
+
+  Serial.println("WATCHDOG DEMO ENABLED: send 'g' to arm the intentional task stall");
+  while (true) {
+    feedWatchdog();
+    if (Serial.available() > 0) {
+      if (Serial.read() == 'g') break;
+      Serial.println("Watchdog demo: send 'g' to start, or reset to cancel");
+    }
+    delay(kWatchdogFeedIntervalMs);
+  }
+
+  for (uint32_t remaining = kWatchdogDemoCountdownSeconds; remaining > 0;
+       --remaining) {
+    Serial.printf("Watchdog demo: stalling in %lu seconds\n",
+                  static_cast<unsigned long>(remaining));
+    feedWatchdog();
+    delay(kWatchdogFeedIntervalMs);
+  }
+
+  Serial.println("Watchdog demo: now stalling without feeding the task watchdog");
+  while (true) delay(1000);
+#endif
+}
 
 void waitWithWatchdog(uint32_t durationMs) {
   const uint32_t startedAt = millis();
@@ -323,6 +357,7 @@ void setup() {
     ESP.restart();
   }
   Serial.println("Slate frame client");
+  runWatchdogDemoIfEnabled();
 
   connectToWifi();
   pollForFrame();

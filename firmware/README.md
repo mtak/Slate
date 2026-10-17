@@ -70,6 +70,37 @@ the documented panel. Both profiles use the same 800×480 frame contract and
 busy-signal timeout. The first update is a full refresh, followed by the
 configured partial/full cadence.
 
+### Optional task-watchdog hardware demo
+
+Build and flash the explicitly opt-in `slate_esp32_watchdog_demo` environment:
+
+```sh
+./.venv/bin/pio run -e slate_esp32_watchdog_demo
+./.venv/bin/pio run -e slate_esp32_watchdog_demo --target upload --upload-port /dev/ttyUSB0
+make monitor PORT=/dev/ttyUSB0
+```
+
+After opening the serial monitor, send `g` to arm the demo. This gate lets you
+be ready to watch before the deliberate stall begins. The firmware prints a
+15-second countdown, then stops feeding the 60-second task watchdog. Leave the
+monitor connected through the automatic reset. After the task-watchdog reset,
+the demo build recognizes the reset and continues normal startup without
+repeating the stall; with local Wi-Fi configuration it should then report
+`Wi-Fi connected`. Capture the gate, countdown, watchdog timeout/reset, and
+successful connection. Sanitize logs before sharing them.
+
+The normal `slate_esp32` environment does not define `SLATE_WATCHDOG_DEMO` and
+cannot start the intentional stall. After capturing the demo, flash the normal
+build again:
+
+```sh
+make upload PORT=/dev/ttyUSB0
+make monitor PORT=/dev/ttyUSB0
+```
+
+This hardware check requires an attached ESP32 and configured local Wi-Fi; it
+cannot be completed by the hardware-independent tests.
+
 Build both frame-client profiles and the panel diagnostic profiles:
 
 ```sh
