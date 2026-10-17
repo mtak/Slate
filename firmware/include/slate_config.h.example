@@ -1,0 +1,9 @@
+#pragma once
+
+// Copy this file to slate_config.h for local device configuration.
+// Keep real values out of Git. This bootstrap sketch does not read this file.
+
+#define SLATE_WIFI_SSID "replace-with-local-network-name"
+#define SLATE_WIFI_PASSWORD "replace-with-local-network-password"
+#define SLATE_SERVER_BASE_URL "https://replace-with-your-server"
+#define SLATE_DEVICE_TOKEN "replace-with-a-local-device-token"

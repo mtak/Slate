@@ -1,0 +1,4 @@
+.venv/
+.pio/
+.platformio/
+include/slate_config.h
