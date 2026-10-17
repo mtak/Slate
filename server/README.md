@@ -36,6 +36,7 @@ The layout supports these block types:
 | Type | Required fields | Optional fields | Effect |
 | --- | --- | --- | --- |
 | `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
+| `wrapped_text` | `key`, `max_width` | `x`, `y`, `size`, `max_lines`, `line_height` | Wrap a provider value at word boundaries within a pixel width, and clip excess lines with an ellipsis. Defaults: position `(0, 0)`, size `24`, three lines, line height `size + 6`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
 | `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key` | Draw a calendar icon using the `weekday`, `day`, and `month` provider values. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, font sizes `16`/`48`/`20`. |
@@ -88,6 +89,12 @@ weekday and month names use the server process locale. Set `TZ` to an IANA
 timezone to control which local date is displayed. The calendar block can be
 removed from the layout or positioned and sized independently of the formatted
 date text.
+
+`DailyAffirmationProvider` adds an `affirmation_heading` and `affirmation` to
+every frame. It cycles through bundled, generic text using the local calendar
+date, so the selection remains stable through the day and needs no network
+access. The sample layout uses `wrapped_text` to keep the message within its
+available space. See the [daily affirmation provider guide](../docs/providers/daily-affirmation.md).
 
 To add another data source, create a provider with the same `get_data()`
 interface, then wire it into the server in `app.py` in place of

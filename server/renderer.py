@@ -50,6 +50,29 @@ class Renderer:
             font = ImageFont.load_default(size=size)
             value = str(data[key])
             draw.text((x, y), value, font=font, fill=0)
+        elif kind == "wrapped_text":
+            key = block.get("key")
+            if not isinstance(key, str) or key not in data:
+                raise ValueError(f"text block references missing data key: {key!r}")
+            size = block.get("size", 24)
+            max_width = block.get("max_width")
+            max_lines = block.get("max_lines", 3)
+            if not isinstance(size, int) or size < 1:
+                raise ValueError("text size must be a positive integer")
+            if not isinstance(max_width, int) or max_width < 1:
+                raise ValueError("wrapped_text max_width must be a positive integer")
+            if not isinstance(max_lines, int) or max_lines < 1:
+                raise ValueError("wrapped_text max_lines must be a positive integer")
+            font = ImageFont.load_default(size=size)
+            lines = Renderer._wrap_text(draw, str(data[key]), font, max_width)
+            line_height = block.get("line_height", size + 6)
+            if not isinstance(line_height, int) or line_height < 1:
+                raise ValueError("wrapped_text line_height must be a positive integer")
+            if len(lines) > max_lines:
+                lines = lines[:max_lines]
+                lines[-1] = Renderer._truncate_text(draw, lines[-1] + " ...", font, max_width)
+            for index, line in enumerate(lines):
+                draw.text((x, y + index * line_height), line, font=font, fill=0)
         elif kind == "line":
             draw.line((x, y, block["x2"], block["y2"]), fill=0, width=block.get("width", 2))
         elif kind == "rectangle":
@@ -129,3 +152,19 @@ class Renderer:
             else:
                 high = middle - 1
         return value[:low] + ellipsis
+
+    @staticmethod
+    def _wrap_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> list[str]:
+        lines: list[str] = []
+        current = ""
+        for word in value.split():
+            candidate = f"{current} {word}" if current else word
+            if draw.textlength(candidate, font=font) <= max_width:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = Renderer._truncate_text(draw, word, font, max_width)
+        if current:
+            lines.append(current)
+        return lines or [""]

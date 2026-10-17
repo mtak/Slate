@@ -9,6 +9,8 @@
     {"type": "text", "key": "date", "x": 48, "y": 144, "size": 28},
     {"type": "text", "key": "headline", "x": 48, "y": 232, "size": 36},
     {"type": "text", "key": "message", "x": 48, "y": 296, "size": 28},
-    {"type": "events", "key": "events", "x": 400, "y": 145, "count": 6, "row_height": 48, "title_size": 22, "detail_size": 16, "max_width": 340}
+    {"type": "events", "key": "events", "x": 400, "y": 145, "count": 4, "row_height": 48, "title_size": 22, "detail_size": 16, "max_width": 340},
+    {"type": "text", "key": "affirmation_heading", "x": 48, "y": 352, "size": 18},
+    {"type": "wrapped_text", "key": "affirmation", "x": 48, "y": 380, "size": 24, "max_width": 700, "max_lines": 2, "line_height": 30}
   ]
 }

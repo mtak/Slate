@@ -9,7 +9,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
-from providers import CurrentDateProvider, DEFAULT_DATE_FORMAT, provider_from_environment
+from providers import CurrentDateProvider, DailyAffirmationProvider, DEFAULT_DATE_FORMAT, provider_from_environment
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
@@ -94,10 +94,12 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
 
         provider = provider_from_environment()
         date_provider = CurrentDateProvider(os.environ.get("SLATE_DATE_FORMAT", DEFAULT_DATE_FORMAT))
+        affirmation_provider = DailyAffirmationProvider()
 
         def render_frame():
             data = provider.get_data()
             data.update(date_provider.get_data())
+            data.update(affirmation_provider.get_data())
             return Renderer.from_file(layout_file).render(data)
 
         frame_provider = render_frame

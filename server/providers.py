@@ -1,7 +1,7 @@
 """Small interfaces and integrations for server-side data sources."""
 
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Callable, Protocol
 from zoneinfo import ZoneInfo
 
@@ -49,6 +49,37 @@ class CurrentDateProvider:
             "weekday": current.strftime("%A"),
             "day": current.strftime("%d").lstrip("0") or "0",
             "month": current.strftime("%B"),
+        }
+
+
+class DailyAffirmationProvider:
+    """Return one bundled affirmation selected for the current local date."""
+
+    AFFIRMATIONS = (
+        "I can take today one step at a time.",
+        "I make room for what matters to me.",
+        "Small progress is still progress.",
+        "I can meet this day with patience.",
+        "I am allowed to learn as I go.",
+        "My effort matters, even when it is quiet.",
+        "I can begin again whenever I need to.",
+        "I bring care and attention to what I do.",
+        "I can focus on the next useful step.",
+        "I have the strength to handle today's challenges.",
+        "I can be proud of how far I have come.",
+        "There is value in taking time to rest.",
+        "I choose progress over perfection.",
+        "I can make today meaningful in my own way.",
+    )
+
+    def __init__(self, today: Callable[[], date] | None = None):
+        self.today = today or (lambda: datetime.now().astimezone().date())
+
+    def get_data(self) -> dict[str, str]:
+        day = self.today()
+        return {
+            "affirmation_heading": "Today's affirmation",
+            "affirmation": self.AFFIRMATIONS[day.toordinal() % len(self.AFFIRMATIONS)],
         }
 
 
