@@ -1,6 +1,7 @@
 """Versioned frame endpoint and browser preview."""
 
 import hashlib
+import hmac
 import os
 import threading
 import time
@@ -19,12 +20,16 @@ PREVIEW_HTML = """<!doctype html>
 <title>Slate frame preview</title>
 <style>body{font:16px system-ui;margin:2rem;background:#eee;color:#222}canvas{display:block;width:min(100%,1000px);height:auto;border:1px solid #777;background:white;image-rendering:pixelated}</style>
 <h1>Slate frame preview</h1><p>Version 1 · 800 × 480 · top-left origin</p>
+<label>Device token <input id="token" type="password" autocomplete="off"></label>
 <canvas id="frame" width="800" height="480" aria-label="Current Slate monochrome frame"></canvas>
 <script>
 let etag;
 async function updateFrame(){
  try{
   const headers=etag?{'If-None-Match':etag}:{};
+  const token=document.querySelector('#token').value;
+  if(!token)return;
+  headers.Authorization='Bearer '+token;
   const response=await fetch('/api/frame/v1',{headers,cache:'no-store'});
   if(response.status===304)return;
   if(!response.ok)throw Error('Frame request failed: '+response.status);
@@ -75,7 +80,8 @@ class CachedFrame:
             return self.frame, self.etag
 
 
-def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS):
+def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
+                   device_token=None, require_https=False):
     cache_key_provider = None
     if frame_provider is None:
         layout_path = os.environ.get("SLATE_LAYOUT_PATH", str(DEFAULT_LAYOUT_PATH))
@@ -89,6 +95,8 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
         frame_provider = lambda: Renderer.from_file(layout_file).render(provider.get_data())
         cache_key_provider = layout_file_signature
     cached_frame = CachedFrame(frame_provider, refresh_seconds, cache_key_provider)
+    if not device_token:
+        raise ValueError("a device token is required")
 
     class SlateHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -101,6 +109,15 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
                 self.wfile.write(body)
                 return
             if self.path == FRAME_PATH:
+                if require_https and self.headers.get("X-Forwarded-Proto", "").lower() != "https":
+                    self.send_error(400, "HTTPS is required")
+                    return
+                authorization = self.headers.get("Authorization", "")
+                scheme, separator, supplied_token = authorization.partition(" ")
+                if (not separator or scheme.lower() != "bearer"
+                        or not hmac.compare_digest(supplied_token, device_token)):
+                    self.send_error(401, "Unauthorized")
+                    return
                 try:
                     frame, etag = cached_frame.get()
                 except (OSError, TypeError, ValueError):
@@ -112,6 +129,9 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
                         self.send_response(304)
                         self.send_header("ETag", etag)
                         self.send_header("Cache-Control", "no-cache")
+                        self.send_header("X-Slate-Format-Version", "1")
+                        self.send_header("X-Slate-Width", "800")
+                        self.send_header("X-Slate-Height", "480")
                         self.end_headers()
                         return
                 self.send_response(200)
@@ -119,6 +139,9 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
                 self.send_header("Content-Length", str(FRAME_SIZE))
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("ETag", etag)
+                self.send_header("X-Slate-Format-Version", "1")
+                self.send_header("X-Slate-Width", "800")
+                self.send_header("X-Slate-Height", "480")
                 self.end_headers()
                 self.wfile.write(frame)
                 return
@@ -130,13 +153,25 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
     return SlateHandler
 
 
-def create_server(frame_provider=None, host="127.0.0.1", port=8000, refresh_seconds=DEFAULT_REFRESH_SECONDS):
-    return ThreadingHTTPServer((host, port), create_handler(frame_provider, refresh_seconds))
+def create_server(frame_provider=None, host="127.0.0.1", port=8000,
+                  refresh_seconds=DEFAULT_REFRESH_SECONDS, device_token=None,
+                  require_https=False):
+    return ThreadingHTTPServer((host, port), create_handler(
+        frame_provider, refresh_seconds, device_token, require_https))
 
 
 if __name__ == "__main__":
     refresh_seconds = int(os.environ.get("SLATE_REFRESH_SECONDS", DEFAULT_REFRESH_SECONDS))
-    server = create_server(host=os.environ.get("SLATE_HOST", "0.0.0.0"), refresh_seconds=refresh_seconds)
+    token = os.environ.get("SLATE_DEVICE_TOKEN")
+    if not token:
+        raise SystemExit("SLATE_DEVICE_TOKEN must be set")
+    require_https_value = os.environ.get("SLATE_REQUIRE_HTTPS", "true").lower()
+    if require_https_value not in ("true", "false", "1", "0"):
+        raise SystemExit("SLATE_REQUIRE_HTTPS must be true or false")
+    require_https = require_https_value in ("true", "1")
+    server = create_server(host=os.environ.get("SLATE_HOST", "0.0.0.0"),
+                           refresh_seconds=refresh_seconds, device_token=token,
+                           require_https=require_https)
     address = server.server_address
     print(f"Slate preview: http://{address[0]}:{address[1]}{PREVIEW_PATH}")
     server.serve_forever()

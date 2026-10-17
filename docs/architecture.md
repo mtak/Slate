@@ -71,6 +71,10 @@ the device with a randomly generated token sent in an authorization header, not
 in a URL. Keep the token in deployment configuration, out of source control,
 and avoid logging it. One device token is sufficient for the initial deployment;
 rotation and multiple devices can be added if needed.
+The server requires a Bearer token and supports `SLATE_REQUIRE_HTTPS` to reject
+device requests that do not arrive with `X-Forwarded-Proto: https` from the
+trusted TLS proxy. In the Traefik deployment, keep the app port private and
+route to it over the Compose network.
 
 ## Refresh behavior
 
@@ -94,10 +98,10 @@ Docker Compose runs the renderer/API as one service initially. It bind-mounts
 the host's `server/` directory read-only, so layout edits persist outside the
 image and atomic file saves are visible inside the container. The service
 detects layout edits on frame requests. `/preview` polls every five seconds and
-redraws when the ETag changes. `.env` can set `SLATE_PORT` and
-`SLATE_REFRESH_SECONDS` and is kept local. Expose the browser preview and
-authenticated device endpoint on the trusted home network; TLS termination may
-be provided by an existing reverse proxy, provided the ESP32 connects to the
-authenticated HTTPS endpoint and validates its certificate. The built-in
-server itself uses plain HTTP, suitable for local development behind a trusted
-network or a TLS-terminating proxy.
+redraws when the ETag changes. `.env` can set `SLATE_REFRESH_SECONDS`,
+`SLATE_DEVICE_TOKEN`, and `SLATE_REQUIRE_HTTPS` and is kept local. The base
+Compose file does not publish the app port; Traefik can reach `slate-server:8000`
+on the Compose network. For a local demo only, `compose.dev.yaml` publishes the
+port and `.env` can set `SLATE_PORT`. The built-in server uses plain HTTP behind
+the TLS-terminating proxy; the device connects to the proxy's HTTPS endpoint
+and validates its certificate.

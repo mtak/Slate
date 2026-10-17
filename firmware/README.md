@@ -14,10 +14,11 @@ From this directory, run:
 cp include/slate_config.h.example include/slate_config.h
 ```
 
-Edit `include/slate_config.h` and set the Wi-Fi SSID and password. The file is
-included by the firmware when present and is ignored by Git. Keep real Wi-Fi
-passwords and server tokens in this local file. Never put third-party
-integration credentials in firmware.
+Edit `include/slate_config.h` and set the Wi-Fi credentials, HTTPS server base
+URL, random device token, and PEM root CA. The file is included by the firmware
+and ignored by Git. `SLATE_TLS_VERIFY` defaults to `true`; set it to `false`
+only to test a self-signed certificate locally. The device sends the token in
+an Authorization header and never includes it in its URL or serial output.
 
 At boot, firmware attempts to connect as a Wi-Fi station and retries forever
 with a delay that doubles from 1 second to a 30-second cap. The main loop
@@ -80,6 +81,25 @@ the serial monitor reports a busy timeout. Do not infer a successful profile
 from compilation alone; the physical result decides which profile is selected.
 Panel profile selection is tracked in [hardware notes](../docs/hardware.md).
 
-Networking and frame-fetch behavior remain separate work.
+The device requests the authenticated v1 frame immediately at startup and then
+polls at `SLATE_POLL_INTERVAL_SECONDS` (default 60). Set
+`SLATE_MIN_REFRESH_INTERVAL_SECONDS` (default 60) to limit the interval between
+panel updates. `SLATE_PARTIAL_REFRESHES_BEFORE_FULL` (default 2) controls how
+many partial updates occur between full refreshes. The first displayed frame
+is always a full refresh; then the firmware performs the configured number of
+partial refreshes before each full refresh. Set it to `0` to disable partial
+refreshes. Partial refreshes can leave ghosting, so the periodic full refresh
+clears residual images. Their visible behavior depends on panel revision; on
+the attached V2 panel, partial and full updates still flashed similarly.
+
+The client validates the media type, v1 format version, 800×480 dimensions, and
+48,000-byte payload before it can replace the displayed frame. It sends the
+server ETag on later polls, skips 304 responses and identical payloads, and
+keeps a validated pending frame until the refresh interval permits an update.
+Transient connection or response failures leave the current panel image alone;
+the next poll retries the request. The V2 and V2-old panel profiles have
+separate partial-refresh driver sequences; verify partial-refresh behavior on
+the attached panel. A physical HTTPS test requires Wi-Fi, a reachable HTTPS
+endpoint, and a valid root CA in the ignored config file.
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.
