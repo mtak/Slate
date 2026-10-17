@@ -83,13 +83,23 @@ Panel profile selection is tracked in [hardware notes](../docs/hardware.md).
 
 The device requests the authenticated v1 frame immediately at startup and then
 polls at `SLATE_POLL_INTERVAL_SECONDS` (default 60). Set
-`SLATE_MIN_REFRESH_INTERVAL_SECONDS` (default 60) to limit full panel refreshes.
+`SLATE_MIN_REFRESH_INTERVAL_SECONDS` (default 60) to limit the interval between
+panel updates. `SLATE_PARTIAL_REFRESHES_BEFORE_FULL` (default 2) controls how
+many partial updates occur between full refreshes. The first displayed frame
+is always a full refresh; then the firmware performs the configured number of
+partial refreshes before each full refresh. Set it to `0` to disable partial
+refreshes. Partial refreshes can leave ghosting, so the periodic full refresh
+clears residual images. Their visible behavior depends on panel revision; on
+the attached V2 panel, partial and full updates still flashed similarly.
+
 The client validates the media type, v1 format version, 800×480 dimensions, and
 48,000-byte payload before it can replace the displayed frame. It sends the
 server ETag on later polls, skips 304 responses and identical payloads, and
 keeps a validated pending frame until the refresh interval permits an update.
 Transient connection or response failures leave the current panel image alone;
-the next poll retries the request. A physical HTTPS test requires Wi-Fi, a
-reachable HTTPS endpoint, and a valid root CA in the ignored config file.
+the next poll retries the request. The V2 and V2-old panel profiles have
+separate partial-refresh driver sequences; verify partial-refresh behavior on
+the attached panel. A physical HTTPS test requires Wi-Fi, a reachable HTTPS
+endpoint, and a valid root CA in the ignored config file.
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.

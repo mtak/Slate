@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "refresh_policy.h"
 #include "wifi_retry.h"
 
 #include <stdio.h>
@@ -82,6 +83,33 @@ void testWifiRetryBackoffIsBounded() {
   expect(slate::nextWifiRetryDelay(30000, 30000) == 30000,
          "Wi-Fi retry delay stays capped");
 }
+
+void testRefreshPolicyUsesConfiguredPartialCount() {
+  using slate::RefreshMode;
+  expect(slate::chooseRefreshMode(false, 0, 2) == RefreshMode::Full,
+         "the first displayed frame uses a full refresh");
+
+  uint32_t partialRefreshesSinceFull = 0;
+  for (uint32_t expected = 1; expected <= 2; ++expected) {
+    const RefreshMode mode = slate::chooseRefreshMode(
+        true, partialRefreshesSinceFull, 2);
+    expect(mode == RefreshMode::Partial,
+           "the configured number of partial refreshes is selected");
+    partialRefreshesSinceFull =
+        slate::partialRefreshesAfterSuccess(mode, partialRefreshesSinceFull);
+    expect(partialRefreshesSinceFull == expected,
+           "successful partial refreshes advance the counter");
+  }
+
+  const RefreshMode full = slate::chooseRefreshMode(
+      true, partialRefreshesSinceFull, 2);
+  expect(full == RefreshMode::Full,
+         "a full refresh follows the configured partial refreshes");
+  expect(slate::partialRefreshesAfterSuccess(full, partialRefreshesSinceFull) == 0,
+         "a successful full refresh resets the partial refresh counter");
+  expect(slate::chooseRefreshMode(true, 0, 0) == RefreshMode::Full,
+         "a configured count of zero disables partial refreshes");
+}
 }  // namespace
 
 int main() {
@@ -89,6 +117,7 @@ int main() {
   testClippingAndRectangleFill();
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
   testWifiRetryBackoffIsBounded();
-  puts("Firmware frame tests passed");
+  testRefreshPolicyUsesConfiguredPartialCount();
+  puts("Firmware tests passed");
   return 0;
 }
