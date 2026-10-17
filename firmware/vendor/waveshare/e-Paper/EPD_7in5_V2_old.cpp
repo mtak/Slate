@@ -29,6 +29,7 @@
 #
 ******************************************************************************/
 #include "EPD_7in5_V2_old.h"
+#include <esp_task_wdt.h>
 
 UBYTE Voltage_Frame_7IN5_V2[]={
 	0x6, 0x3F, 0x3F, 0x11, 0x24, 0x7, 0x17,
@@ -243,14 +244,21 @@ parameter:
 static void EPD_WaitUntilIdle(void)
 {
     const uint32_t start = millis();
+	uint32_t lastWatchdogFeed = start;
     Debug("e-Paper busy\r\n");
 	while (!DEV_Digital_Read(EPD_BUSY_PIN))
 	{
-		if (millis() - start >= 60000UL)
+		const uint32_t now = millis();
+		if (now - start >= 60000UL)
 		{
 			slateEpdBusyTimeout = true;
 			Debug("e-Paper busy timeout\r\n");
 			return;
+		}
+		if (now - lastWatchdogFeed >= 1000UL)
+		{
+			esp_task_wdt_reset();
+			lastWatchdogFeed = now;
 		}
 		DEV_Delay_ms(5);
 	}
