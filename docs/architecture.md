@@ -36,13 +36,21 @@ publishing them.
 
 ## Image contract
 
-Choose and document one compact 1-bit transport format during implementation
-(for example, a raw 48,000-byte frame with a fixed orientation/bit order, or a
-simple self-describing format). Include a format version and dimensions either
-in a small header or in a versioned endpoint. The server should expose the same
-latest frame to a browser-friendly preview route. The endpoint should return an
-ETag derived from the exact frame bytes; an unchanged conditional request should
-return `304 Not Modified` without sending the frame again.
+Version 1 is a raw, uncompressed 48,000-byte payload at `GET /api/frame/v1`.
+The versioned path identifies the format; the payload has no header. It encodes
+an 800×480, 1-bit monochrome frame in row-major order, beginning at the top-left
+and proceeding left-to-right, then top-to-bottom. Within each byte, the
+leftmost pixel is the most significant bit (bit 7). A zero bit is black and a
+one bit is white. Each row is exactly 100 bytes, so there is no row padding.
+These are the same byte and pixel conventions used by the firmware frame
+buffer and Waveshare display driver.
+
+The development server exposes `/preview`, which draws the bytes from the v1
+endpoint into an 800×480 browser canvas using the same origin, row, bit, and
+polarity rules. The built-in sample frame marks all four corners and draws an
+asymmetric upper-left L to make orientation errors visible. Issue #7 will add
+an ETag derived from the exact frame bytes; an unchanged conditional request
+will return `304 Not Modified` without sending the frame again.
 
 ## Security
 
