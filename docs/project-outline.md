@@ -61,6 +61,6 @@ prototype shows a practical limitation.
 - Google OAuth and calendar presentation
 - Home automation metrics integration
 - Remote administration or a public-facing service
-- Partial refresh optimization
 
-These can follow once the end-to-end image path works.
+Google OAuth, home automation metrics, and remote administration can follow
+once the end-to-end image path works.
