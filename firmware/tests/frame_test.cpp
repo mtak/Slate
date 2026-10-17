@@ -64,7 +64,8 @@ void testDiagnosticFrameIsDeterministicAndDistinguishesProfiles() {
 
   expect(isBlack(first, 8, 8) && isBlack(first, 791, 471),
          "diagnostic frame draws its border");
-  expect(isBlack(first, 18, 18) && isBlack(first, 781, 461),
+  expect(isBlack(first, 18, 18) && isBlack(first, 781, 18) &&
+             isBlack(first, 18, 461) && isBlack(first, 781, 461),
          "diagnostic frame marks all display corners");
   expect(isBlack(first, 64, 318) && !isBlack(first, 72, 318),
          "diagnostic frame includes the checkerboard pattern");
