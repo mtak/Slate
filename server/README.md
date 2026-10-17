@@ -51,8 +51,10 @@ docker compose up --build
 
 Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
 `SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
-`server/layout.json` into the container, so layout edits remain on the host and
-are used on the next container start. The sample layout and provider contain no
+`server/layout.json` into the container, so layout edits remain on the host.
+The server checks that file on each frame request and renders a new frame when
+it changes. The open browser preview polls every five seconds and redraws only
+when the ETag changes. The sample layout and provider contain no
 household-specific data.
 
 To add a data source, implement the small `Provider` interface in

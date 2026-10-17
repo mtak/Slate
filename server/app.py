@@ -21,25 +21,42 @@ PREVIEW_HTML = """<!doctype html>
 <h1>Slate frame preview</h1><p>Version 1 · 800 × 480 · top-left origin</p>
 <canvas id="frame" width="800" height="480" aria-label="Current Slate monochrome frame"></canvas>
 <script>
-fetch('/api/frame/v1').then(r=>{if(!r.ok)throw Error('Frame request failed: '+r.status);return r.arrayBuffer()})
- .then(buffer=>{const bytes=new Uint8Array(buffer);if(bytes.length!==48000)throw Error('Invalid frame size');
- const canvas=document.querySelector('#frame'),ctx=canvas.getContext('2d'),image=ctx.createImageData(800,480);
- for(let y=0;y<480;y++)for(let x=0;x<800;x++){
-  const black=(bytes[y*100+(x>>3)]&(128>>(x&7)))===0,offset=(y*800+x)*4,value=black?0:255;
-  image.data[offset]=image.data[offset+1]=image.data[offset+2]=value;image.data[offset+3]=255;
- }ctx.putImageData(image,0,0);
- }).catch(error=>{document.body.insertAdjacentHTML('beforeend','<p role="alert">'+error.message+'</p>');});
+let etag;
+async function updateFrame(){
+ try{
+  const headers=etag?{'If-None-Match':etag}:{};
+  const response=await fetch('/api/frame/v1',{headers,cache:'no-store'});
+  if(response.status===304)return;
+  if(!response.ok)throw Error('Frame request failed: '+response.status);
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(bytes.length!==48000)throw Error('Invalid frame size');
+  const canvas=document.querySelector('#frame'),ctx=canvas.getContext('2d'),image=ctx.createImageData(800,480);
+  for(let y=0;y<480;y++)for(let x=0;x<800;x++){
+   const black=(bytes[y*100+(x>>3)]&(128>>(x&7)))===0,offset=(y*800+x)*4,value=black?0:255;
+   image.data[offset]=image.data[offset+1]=image.data[offset+2]=value;image.data[offset+3]=255;
+  }
+  ctx.putImageData(image,0,0);
+  etag=response.headers.get('ETag');
+ }catch(error){
+  let message=document.querySelector('#error');
+  if(!message){message=document.createElement('p');message.id='error';message.setAttribute('role','alert');document.body.append(message);}
+  message.textContent=error.message;
+ }
+}
+updateFrame();
+setInterval(updateFrame,5000);
 </script></html>"""
 
 
 class CachedFrame:
     """Render at most once per refresh interval and retain a stable frame ETag."""
 
-    def __init__(self, frame_provider, refresh_seconds=DEFAULT_REFRESH_SECONDS):
+    def __init__(self, frame_provider, refresh_seconds=DEFAULT_REFRESH_SECONDS, cache_key_provider=None):
         if refresh_seconds < 1:
             raise ValueError("refresh_seconds must be at least 1")
         self.frame_provider = frame_provider
         self.refresh_seconds = refresh_seconds
+        self.cache_key_provider = cache_key_provider or (lambda: None)
         self.lock = threading.Lock()
         self.frame = None
         self.etag = None
@@ -47,21 +64,31 @@ class CachedFrame:
 
     def get(self):
         with self.lock:
-            if self.frame is None or time.monotonic() - self.rendered_at >= self.refresh_seconds:
+            cache_key = self.cache_key_provider()
+            if (self.frame is None or cache_key != self.cache_key
+                    or time.monotonic() - self.rendered_at >= self.refresh_seconds):
                 frame = validate_frame(self.frame_provider())
                 self.frame = frame
                 self.etag = '"' + hashlib.sha256(frame).hexdigest() + '"'
                 self.rendered_at = time.monotonic()
+                self.cache_key = self.cache_key_provider()
             return self.frame, self.etag
 
 
 def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS):
+    cache_key_provider = None
     if frame_provider is None:
         layout_path = os.environ.get("SLATE_LAYOUT_PATH", str(DEFAULT_LAYOUT_PATH))
-        renderer = Renderer.from_file(layout_path)
+        layout_file = os.path.abspath(layout_path)
+
+        def layout_file_signature():
+            stat = os.stat(layout_file)
+            return stat.st_mtime_ns, stat.st_size
+
         provider = SampleProvider()
-        frame_provider = lambda: renderer.render(provider.get_data())
-    cached_frame = CachedFrame(frame_provider, refresh_seconds)
+        frame_provider = lambda: Renderer.from_file(layout_file).render(provider.get_data())
+        cache_key_provider = layout_file_signature
+    cached_frame = CachedFrame(frame_provider, refresh_seconds, cache_key_provider)
 
     class SlateHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -76,8 +103,8 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
             if self.path == FRAME_PATH:
                 try:
                     frame, etag = cached_frame.get()
-                except (TypeError, ValueError):
-                    self.send_error(500, "Frame provider returned an invalid frame")
+                except (OSError, TypeError, ValueError):
+                    self.send_error(500, "Frame could not be rendered")
                     return
                 if self.headers.get("If-None-Match"):
                     tags = {tag.strip().removeprefix("W/") for tag in self.headers["If-None-Match"].split(",")}

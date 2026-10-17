@@ -78,6 +78,9 @@ The Compose deployment sets the server render cadence with
 `SLATE_REFRESH_SECONDS` (default 60 seconds). The service renders on first
 request, then keeps those bytes and their ETag until the interval expires. On
 the next frame request after expiry, it renders again and derives a new ETag.
+An edit to the mounted layout file invalidates the cached frame immediately,
+so the next frame request renders the edited layout without restarting the
+container.
 The firmware's polling cadence is a separate setting: it can poll more often
 than the server renders, using `If-None-Match` to avoid receiving duplicate
 bytes. Keep panel updates at or above the panel's minimum refresh interval even
@@ -89,7 +92,8 @@ backoff.
 
 Docker Compose runs the renderer/API as one service initially. It bind-mounts
 `server/layout.json` from the host, so edits persist outside the image; the
-service reads the layout when it starts. `.env` can set `SLATE_PORT` and
+service detects layout edits on frame requests. `/preview` polls every five
+seconds and redraws when the ETag changes. `.env` can set `SLATE_PORT` and
 `SLATE_REFRESH_SECONDS` and is kept local. Expose the browser preview and
 authenticated device endpoint on the trusted home network; TLS termination may
 be provided by an existing reverse proxy, provided the ESP32 connects to the
