@@ -108,9 +108,11 @@ docker compose up --build
 Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
 `SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
 `server/` read-only so layout edits stay on the host; the container can read
-but cannot change the layout. The server checks `layout.json` on each frame
-request, and the preview polls every five seconds. The sample layout and
-provider contain no household-specific data.
+but cannot change the layout. Mounting the whole directory also keeps atomic
+file saves visible inside the container, unlike mounting only `layout.json`.
+The server checks `layout.json` on each frame request, and the preview polls
+every five seconds. The sample layout and provider contain no
+household-specific data.
 
 This is intended to be a public repository; follow the [public repository
 hygiene notes](../docs/architecture.md#public-repository-hygiene). Secrets
