@@ -7,42 +7,13 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from frame import CONTENT_TYPE, FRAME_SIZE, HEIGHT, WIDTH, validate_frame
+from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
 from providers import SampleProvider
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
 PREVIEW_PATH = "/preview"
 DEFAULT_REFRESH_SECONDS = 60
-FRAME_HISTORY_LIMIT = 8
-
-
-def crop_frame_delta(previous, current):
-    """Return byte-aligned bounds and packed pixels for the changed area."""
-    first_byte = WIDTH // 8
-    last_byte = -1
-    first_row = HEIGHT
-    last_row = -1
-    bytes_per_row = WIDTH // 8
-    for y in range(HEIGHT):
-        row_start = y * bytes_per_row
-        changed = [x for x in range(bytes_per_row)
-                   if previous[row_start + x] != current[row_start + x]]
-        if changed:
-            first_byte = min(first_byte, changed[0])
-            last_byte = max(last_byte, changed[-1])
-            first_row = min(first_row, y)
-            last_row = y
-    if last_row < 0:
-        return None
-    width_bytes = last_byte - first_byte + 1
-    payload = b"".join(
-        current[y * bytes_per_row + first_byte:
-                y * bytes_per_row + first_byte + width_bytes]
-        for y in range(first_row, last_row + 1)
-    )
-    return (first_byte * 8, first_row, width_bytes * 8,
-            last_row - first_row + 1, payload)
 
 PREVIEW_HTML = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -94,8 +65,6 @@ class CachedFrame:
         self.lock = threading.Lock()
         self.frame = None
         self.etag = None
-        self.frames_by_etag = {}
-        self.frame_etags = []
         self.rendered_at = 0
 
     def get(self):
@@ -106,19 +75,9 @@ class CachedFrame:
                 frame = validate_frame(self.frame_provider())
                 self.frame = frame
                 self.etag = '"' + hashlib.sha256(frame).hexdigest() + '"'
-                if self.etag not in self.frames_by_etag:
-                    self.frames_by_etag[self.etag] = frame
-                    self.frame_etags.append(self.etag)
-                    while len(self.frame_etags) > FRAME_HISTORY_LIMIT:
-                        expired = self.frame_etags.pop(0)
-                        self.frames_by_etag.pop(expired, None)
                 self.rendered_at = time.monotonic()
                 self.cache_key = self.cache_key_provider()
             return self.frame, self.etag
-
-    def get_by_etag(self, etag):
-        with self.lock:
-            return self.frames_by_etag.get(etag)
 
 
 def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
@@ -175,43 +134,16 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                         self.send_header("X-Slate-Height", "480")
                         self.end_headers()
                         return
-                refresh_mode = self.headers.get("X-Slate-Refresh-Mode", "full").lower()
-                displayed_etag = self.headers.get("X-Slate-Displayed-ETag", "")
-                region = None
-                fallback_reason = ""
-                if refresh_mode == "partial" and displayed_etag:
-                    previous = cached_frame.get_by_etag(displayed_etag)
-                    if previous is not None:
-                        region = crop_frame_delta(previous, frame)
-                        if region is None:
-                            fallback_reason = "no-byte-differences"
-                    else:
-                        fallback_reason = "displayed-frame-not-in-history"
-                elif refresh_mode == "partial":
-                    fallback_reason = "displayed-etag-missing"
-                if region is None:
-                    x, y, width, height, body = 0, 0, WIDTH, HEIGHT, frame
-                    payload_type = "full"
-                else:
-                    x, y, width, height, body = region
-                    payload_type = "delta"
                 self.send_response(200)
                 self.send_header("Content-Type", CONTENT_TYPE)
-                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Content-Length", str(FRAME_SIZE))
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("ETag", etag)
                 self.send_header("X-Slate-Format-Version", "1")
                 self.send_header("X-Slate-Width", "800")
                 self.send_header("X-Slate-Height", "480")
-                self.send_header("X-Slate-Region-X", str(x))
-                self.send_header("X-Slate-Region-Y", str(y))
-                self.send_header("X-Slate-Region-Width", str(width))
-                self.send_header("X-Slate-Region-Height", str(height))
-                self.send_header("X-Slate-Payload-Type", payload_type)
-                if fallback_reason:
-                    self.send_header("X-Slate-Fallback", fallback_reason)
                 self.end_headers()
-                self.wfile.write(body)
+                self.wfile.write(frame)
                 return
             self.send_error(404)
 

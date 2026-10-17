@@ -6,6 +6,7 @@
 #include <esp_task_wdt.h>
 
 #include "frame.h"
+#include "frame_diff.h"
 #include "refresh_policy.h"
 #include "wifi_retry.h"
 #include "../vendor/waveshare/Config/DEV_Config.h"
@@ -27,8 +28,9 @@ bool havePendingFrame = false;
 bool havePanelRefreshAttempt = false;
 String lastEtag;
 String displayedEtag;
-bool frameBufferInvalidated = false;
+bool frameBufferMatchesDisplay = false;
 bool pendingRequiresFullRefresh = false;
+bool pendingHasChanges = true;
 uint16_t pendingRegionX = 0;
 uint16_t pendingRegionY = 0;
 uint16_t pendingRegionWidth = slate::kDisplayWidth;
@@ -65,8 +67,7 @@ constexpr bool kWifiConfigured = true;
 constexpr bool kWifiConfigured = false;
 #endif
 
-bool fetchFrame(bool partialRefresh) {
-  frameBufferInvalidated = false;
+bool fetchFrame(bool comparePartial) {
 #if !defined(SLATE_SERVER_BASE_URL) || !defined(SLATE_DEVICE_TOKEN)
   Serial.println("Frame endpoint is not configured");
   return false;
@@ -89,17 +90,9 @@ bool fetchFrame(bool partialRefresh) {
     return false;
   }
   request.addHeader("Authorization", String("Bearer ") + SLATE_DEVICE_TOKEN);
-  const char *headerKeys[] = {"ETag", "Content-Type", "X-Slate-Format-Version",
-                              "X-Slate-Width", "X-Slate-Height",
-                              "X-Slate-Payload-Type",
-                              "X-Slate-Region-X", "X-Slate-Region-Y",
-                              "X-Slate-Region-Width", "X-Slate-Region-Height"};
+  const char *headerKeys[] = {"ETag", "Content-Type"};
   request.collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
   if (lastEtag.length() > 0) request.addHeader("If-None-Match", lastEtag);
-  request.addHeader("X-Slate-Refresh-Mode", partialRefresh ? "partial" : "full");
-  if (partialRefresh && haveDisplayedFrame && displayedEtag.length() > 0) {
-    request.addHeader("X-Slate-Displayed-ETag", displayedEtag);
-  }
   request.setTimeout(10000);
   const int status = request.GET();
   bool ok = false;
@@ -108,50 +101,51 @@ bool fetchFrame(bool partialRefresh) {
     request.end();
     return false;
   }
-  const bool validMetadata = request.header("Content-Type") == "application/vnd.slate.frame" &&
-      request.header("X-Slate-Format-Version") == "1" &&
-      request.header("X-Slate-Width") == "800" &&
-      request.header("X-Slate-Height") == "480";
-  const int regionX = request.header("X-Slate-Region-X").toInt();
-  const int regionY = request.header("X-Slate-Region-Y").toInt();
-  const int regionWidth = request.header("X-Slate-Region-Width").toInt();
-  const int regionHeight = request.header("X-Slate-Region-Height").toInt();
-  const bool validRegion = regionX >= 0 && regionY >= 0 &&
-      regionWidth > 0 && regionHeight > 0 &&
-      regionX + regionWidth <= slate::kDisplayWidth &&
-      regionY + regionHeight <= slate::kDisplayHeight &&
-      regionX % 8 == 0 && regionWidth % 8 == 0 &&
-      request.getSize() == (regionWidth / 8) * regionHeight;
-  const String payloadType = request.header("X-Slate-Payload-Type");
-  const bool fullFrame = status == HTTP_CODE_OK && payloadType == "full" && validRegion &&
-      regionX == 0 && regionY == 0 &&
-      regionWidth == slate::kDisplayWidth &&
-      regionHeight == slate::kDisplayHeight &&
+  const bool validFrame = status == HTTP_CODE_OK &&
+      request.header("Content-Type") == "application/vnd.slate.frame" &&
       request.getSize() == slate::kFrameSize;
-  const bool partialFrame = partialRefresh && status == HTTP_CODE_OK &&
-      payloadType == "delta" && validRegion;
-  if (validMetadata && (fullFrame || partialFrame)) {
+  if (validFrame) {
     WiFiClient *stream = request.getStreamPtr();
-    frameBufferInvalidated = true;
-    const size_t count = stream->readBytes(frame, request.getSize());
-    ok = count == static_cast<size_t>(request.getSize());
+    frameBufferMatchesDisplay = false;
+    slate::FrameDiff diff;
+    uint8_t incomingRow[slate::kBytesPerRow];
+    ok = true;
+    for (uint16_t y = 0; y < slate::kDisplayHeight; ++y) {
+      const size_t count = stream->readBytes(incomingRow, sizeof(incomingRow));
+      if (count != sizeof(incomingRow)) {
+        ok = false;
+        break;
+      }
+      const size_t offset = static_cast<size_t>(y) * slate::kBytesPerRow;
+      for (uint16_t xByte = 0; xByte < slate::kBytesPerRow; ++xByte) {
+        if (comparePartial && incomingRow[xByte] != frame[offset + xByte]) {
+          diff.record(xByte, y);
+        }
+        frame[offset + xByte] = incomingRow[xByte];
+      }
+    }
     if (ok) {
       const String responseEtag = request.header("ETag");
       if (responseEtag.length() == 0) {
         ok = false;
       } else {
         lastEtag = responseEtag;
-        pendingRequiresFullRefresh = partialRefresh && fullFrame;
-        pendingRegionX = regionX;
-        pendingRegionY = regionY;
-        pendingRegionWidth = regionWidth;
-        pendingRegionHeight = regionHeight;
-        frameBufferInvalidated = false;
+        pendingRequiresFullRefresh = !comparePartial;
+        const slate::ChangedRegion changed = diff.region();
+        pendingHasChanges = changed.changed || !comparePartial;
+        pendingRegionX = changed.changed ? changed.x : 0;
+        pendingRegionY = changed.changed ? changed.y : 0;
+        pendingRegionWidth = changed.changed ? changed.width : slate::kDisplayWidth;
+        pendingRegionHeight = changed.changed ? changed.height : slate::kDisplayHeight;
+        if (!changed.changed && comparePartial) {
+          displayedEtag = lastEtag;
+          frameBufferMatchesDisplay = true;
+        }
       }
     }
   }
   request.end();
-  if (ok) Serial.println("Validated frame downloaded over HTTPS");
+  if (ok) Serial.println("Validated full frame downloaded over HTTPS");
   else Serial.printf("Frame request rejected (HTTP %d or invalid frame contract)\n", status);
   return ok;
 #endif
@@ -224,6 +218,45 @@ bool initializePanel(bool partialRefresh) {
   return result == 0 && !slateEpdBusyTimeout;
 }
 
+void displayStridedPartial(UBYTE *image, UDOUBLE xStart, UDOUBLE yStart,
+                           UDOUBLE xEnd, UDOUBLE yEnd, bool oldProfile) {
+  const UDOUBLE widthBytes = (xEnd - xStart) / 8;
+#if !defined(SLATE_EPD_PROFILE_V2_OLD)
+  if (!oldProfile) {
+    EPD_SendCommand(0x50);
+    EPD_SendData(0xA9);
+    EPD_SendData(0x07);
+  }
+#endif
+  EPD_SendCommand(0x91);
+  EPD_SendCommand(0x90);
+  EPD_SendData(xStart / 256);
+  EPD_SendData(xStart % 256);
+  if (oldProfile) {
+    EPD_SendData((xEnd - 1) / 256);
+    EPD_SendData((xEnd - 1) % 256);
+  } else {
+    EPD_SendData(xEnd / 256);
+    EPD_SendData(xEnd % 256 - 1);
+  }
+  EPD_SendData(yStart / 256);
+  EPD_SendData(yStart % 256);
+  if (oldProfile) {
+    EPD_SendData((yEnd - 1) / 256);
+    EPD_SendData((yEnd - 1) % 256);
+  } else {
+    EPD_SendData(yEnd / 256);
+    EPD_SendData(yEnd % 256 - 1);
+  }
+  EPD_SendData(0x01);
+  EPD_SendCommand(0x13);
+  for (UDOUBLE y = yStart; y < yEnd; ++y) {
+    EPD_SendData2(image + y * slate::kBytesPerRow + xStart / 8, widthBytes);
+  }
+  EPD_7IN5_V2_TurnOnDisplay();
+  if (oldProfile) EPD_SendCommand(0x92);
+}
+
 void sleepPanel() {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
   EPD_7IN5_V2_Sleep_old();
@@ -241,15 +274,15 @@ void pollForFrame() {
       plannedRefreshMode == slate::RefreshMode::Partial;
   if (static_cast<int32_t>(now - nextPollAt) >= 0) {
     nextPollAt = now + kPollIntervalMs;
-    if (WiFi.status() == WL_CONNECTED && fetchFrame(plannedPartialRefresh)) {
+    if (!havePendingFrame && WiFi.status() == WL_CONNECTED &&
+        fetchFrame(plannedPartialRefresh && haveDisplayedFrame && frameBufferMatchesDisplay)) {
       if (!haveDisplayedFrame || lastEtag != displayedEtag) {
-        havePendingFrame = true;
+        havePendingFrame = lastEtag != displayedEtag;
+        if (!havePendingFrame) Serial.println("Frame payload unchanged");
       } else {
         havePendingFrame = false;
         Serial.println("Frame payload unchanged");
       }
-    } else if (frameBufferInvalidated) {
-      havePendingFrame = false;
     }
   }
   if (!havePendingFrame) return;
@@ -260,26 +293,29 @@ void pollForFrame() {
   const bool partialRefresh = plannedPartialRefresh && !pendingRequiresFullRefresh;
   const slate::RefreshMode refreshMode = partialRefresh
       ? slate::RefreshMode::Partial : slate::RefreshMode::Full;
-  if (plannedPartialRefresh && pendingRequiresFullRefresh) {
-    Serial.println("Delta history unavailable; using a full refresh");
+  if (partialRefresh && !pendingHasChanges) {
+    Serial.println("Frame differs; no changed bytes found; skipping panel refresh");
+    displayedEtag = lastEtag;
+    havePendingFrame = false;
+    frameBufferMatchesDisplay = true;
+    return;
   }
   DEV_Module_Init();
   if (!initializePanel(partialRefresh)) {
     Serial.println("Panel initialization failed or timed out; keeping current display");
     DEV_Module_Exit();
+    pendingRequiresFullRefresh = true;
     return;
   }
   lastPanelRefreshAt = millis();
   havePanelRefreshAttempt = true;
   if (partialRefresh) {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
-    EPD_7IN5_V2_Display_Partial_old(frame, pendingRegionX, pendingRegionY,
-        pendingRegionX + pendingRegionWidth,
-        pendingRegionY + pendingRegionHeight);
+    displayStridedPartial(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight, true);
 #else
-    EPD_7IN5_V2_Display_Part(frame, pendingRegionX, pendingRegionY,
-        pendingRegionX + pendingRegionWidth,
-        pendingRegionY + pendingRegionHeight);
+    displayStridedPartial(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight, false);
 #endif
   } else {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
@@ -291,15 +327,19 @@ void pollForFrame() {
   if (slateEpdBusyTimeout) {
     Serial.println("Panel refresh timed out; keeping current display");
     DEV_Module_Exit();
+    pendingRequiresFullRefresh = true;
     return;
   }
   sleepPanel();
   if (slateEpdBusyTimeout) {
     Serial.println("Panel sleep wait timed out");
     DEV_Module_Exit();
+    pendingRequiresFullRefresh = true;
     return;
   }
   haveDisplayedFrame = true;
+  frameBufferMatchesDisplay = true;
+  pendingRequiresFullRefresh = false;
   havePendingFrame = false;
   displayedEtag = lastEtag;
   partialRefreshesSinceFull =

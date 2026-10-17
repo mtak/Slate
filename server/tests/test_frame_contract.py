@@ -1,5 +1,4 @@
 import threading
-import time
 import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -52,12 +51,8 @@ class FrameContractTests(unittest.TestCase):
         thread.start()
         base = f"http://127.0.0.1:{server.server_address[1]}"
         try:
-            with urlopen(Request(base + FRAME_PATH, headers={
-                    "Authorization": "Bearer " + DEVICE_TOKEN,
-                    "X-Slate-Refresh-Mode": "full"})) as response:
+            with urlopen(Request(base + FRAME_PATH, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
                 self.assertEqual(response.headers.get_content_type(), CONTENT_TYPE)
-                self.assertEqual(response.headers["X-Slate-Payload-Type"], "full")
-                self.assertEqual(response.headers["X-Slate-Region-Width"], "800")
                 self.assertEqual(response.read(), frame)
             with urlopen(base + PREVIEW_PATH) as response:
                 page = response.read().decode("utf-8")
@@ -98,68 +93,6 @@ class FrameContractTests(unittest.TestCase):
                 urlopen(request)
             self.assertEqual(error.exception.code, 304)
             self.assertEqual(error.exception.headers["ETag"], etag)
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join()
-
-    def test_partial_request_returns_only_byte_aligned_changed_bounds(self):
-        original = bytearray([0xFF]) * FRAME_SIZE
-        changed = bytearray(original)
-        changed[5 * (WIDTH // 8) + 2] = 0x7F
-        changed[8 * (WIDTH // 8) + 5] = 0xFE
-        provider_frames = iter((bytes(original), bytes(changed)))
-        server = create_server(lambda: next(provider_frames), port=0,
-                               refresh_seconds=1, device_token=DEVICE_TOKEN)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
-        headers = {"Authorization": "Bearer " + DEVICE_TOKEN}
-        try:
-            with urlopen(Request(url, headers=headers)) as response:
-                old_etag = response.headers["ETag"]
-                self.assertEqual(len(response.read()), FRAME_SIZE)
-            time.sleep(1.05)
-            headers.update({
-                "If-None-Match": old_etag,
-                "X-Slate-Displayed-ETag": old_etag,
-                "X-Slate-Refresh-Mode": "partial",
-            })
-            with urlopen(Request(url, headers=headers)) as response:
-                self.assertEqual(response.status, 200)
-                self.assertEqual(response.headers["X-Slate-Payload-Type"], "delta")
-                self.assertEqual(response.headers["X-Slate-Region-X"], "16")
-                self.assertEqual(response.headers["X-Slate-Region-Y"], "5")
-                self.assertEqual(response.headers["X-Slate-Region-Width"], "32")
-                self.assertEqual(response.headers["X-Slate-Region-Height"], "4")
-                crop = response.read()
-                self.assertEqual(len(crop), 16)
-                self.assertEqual(crop[:4], bytes((0x7F, 0xFF, 0xFF, 0xFF)))
-                self.assertEqual(crop[12:], bytes((0xFF, 0xFF, 0xFF, 0xFE)))
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join()
-
-    def test_partial_request_falls_back_to_full_frame_for_unknown_displayed_etag(self):
-        frame = sample_frame()
-        server = create_server(lambda: frame, port=0, device_token=DEVICE_TOKEN)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
-        headers = {
-            "Authorization": "Bearer " + DEVICE_TOKEN,
-            "X-Slate-Refresh-Mode": "partial",
-            "X-Slate-Displayed-ETag": '"not-in-history"',
-        }
-        try:
-            with urlopen(Request(url, headers=headers)) as response:
-                self.assertEqual(response.status, 200)
-                self.assertEqual(response.headers["X-Slate-Payload-Type"], "full")
-                self.assertEqual(response.headers["X-Slate-Fallback"],
-                                 "displayed-frame-not-in-history")
-                self.assertEqual(response.headers["X-Slate-Region-Width"], "800")
-                self.assertEqual(len(response.read()), FRAME_SIZE)
         finally:
             server.shutdown()
             server.server_close()

@@ -91,25 +91,26 @@ many partial updates occur between full refreshes. The first displayed frame
 is always a full refresh; then the firmware performs the configured number of
 partial refreshes before each full refresh. Set it to `0` to disable partial
 refreshes. Partial refreshes can leave ghosting, so the periodic full refresh
-clears residual images. For a partial update, the client sends the ETag of the
-displayed frame to the server. When that frame is still in the server's recent
-history, the server returns a packed, byte-aligned crop covering the pixels
-that changed; otherwise it returns the full frame as a safe fallback. The
-ESP32 stores either response in its existing 48,000-byte frame buffer, so it
-does not need a second full framebuffer. A history miss makes the client use a
-full panel refresh and restart the partial counter; a delta is sent to the
-panel using the normal 2-partials/1-full policy.
+clears residual images. The server always returns the complete 48,000-byte
+frame. During a partial update, firmware reads the new image one 100-byte row
+at a time, compares each incoming byte with the existing framebuffer, and
+overwrites it in place. It tracks the smallest rectangle containing all
+changed bytes; its horizontal edges align to byte boundaries (eight pixels).
+The partial display transfer reads rows from the full-frame stride, so no crop
+buffer or second framebuffer is needed. Only the one 48,000-byte framebuffer
+and a 100-byte scanline scratch buffer are used.
 
-The client validates the media type, v1 format version, full 800×480 display
-dimensions, region bounds and byte alignment, and the expected payload length
-(48,000 bytes for a full frame or `Region-Width / 8 × Region-Height` for a
-delta) before accepting an update. It sends the latest server ETag on later
-polls, skips 304 responses and identical payloads, and keeps a validated
-pending update until the refresh interval permits an update.
-Transient connection or response failures leave the current panel image alone;
-the next poll retries the request. The V2 and V2-old panel profiles have
-separate partial-refresh driver sequences; verify partial-refresh behavior on
-the attached panel. A physical HTTPS test requires Wi-Fi, a reachable HTTPS
-endpoint, and a valid root CA in the ignored config file.
+The client validates the frame media type and exact payload length, sends the
+latest server ETag on later polls, skips 304 responses and unchanged frames,
+and keeps a validated pending frame until the refresh interval permits an
+update. A partial comparison is used only when the framebuffer is known to
+match the displayed panel image. An interrupted download or failed panel
+operation makes the next attempt a full refresh. The panel uses the normal
+two-partials/one-full cadence. The V2 and V2-old panel profiles have separate
+partial-refresh controller sequences; verify behavior on the attached panel.
+Partial refreshes may flash within the updated window. A physical HTTPS test
+requires Wi-Fi, a reachable HTTPS endpoint, and a valid root CA in the ignored
+config file.
+
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.

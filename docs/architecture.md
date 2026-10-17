@@ -63,56 +63,6 @@ the current frame still has that ETag, the server responds with
 returns `200 OK`, the new ETag, and the complete frame. The firmware can then
 skip transferring and drawing an unchanged frame.
 
-### Changed-area frame responses
-
-The frame endpoint has an opt-in delta protocol for the ESP32. These headers
-are used only by the device; requests without them continue to receive the
-full-frame response described above.
-
-| Header | Direction | Meaning |
-| --- | --- | --- |
-| `X-Slate-Refresh-Mode: full` or `partial` | Request | Tells the server whether the next panel update requires a complete frame or may use a changed-area crop. |
-| `X-Slate-Displayed-ETag: <etag>` | Request | For partial mode, identifies the complete frame currently shown on the panel. The value is the quoted ETag previously returned by the server. |
-| `X-Slate-Payload-Type: full` or `delta` | Response | Identifies whether the body is the full 800×480 frame or a packed rectangular crop. |
-| `X-Slate-Region-X`, `X-Slate-Region-Y`, `X-Slate-Region-Width`, `X-Slate-Region-Height` | Response | Gives the crop origin and dimensions in pixels. A full payload uses `(0, 0, 800, 480)`. |
-| `X-Slate-Fallback` | Response | Present with a full payload when a partial request cannot produce a delta; values identify the reason. |
-
-`If-None-Match` tracks the most recently downloaded frame and avoids a repeated
-download. `X-Slate-Displayed-ETag` tracks the frame currently visible on the
-panel; it can lag behind `If-None-Match` while an update is waiting for the
-minimum refresh interval or after a display failure. Keep these two values
-separate, and advance the displayed ETag only after the panel update succeeds.
-
-Every changed-frame response uses `200 OK` and retains the same media type,
-format version, full display dimensions, and ETag headers. `If-None-Match` is
-checked first: if the current frame is unchanged, the response is `304 Not
-Modified` with no body, regardless of refresh mode. In partial mode, the server
-looks up the displayed ETag among the eight most recently rendered frames. If
-found, it compares the 48,000-byte frames and returns the smallest bounding
-rectangle that contains every changed byte. Its left edge and width are
-aligned to byte boundaries (multiples of eight pixels); the rectangle can
-therefore include unchanged pixels at either horizontal edge.
-Rows are packed with no padding: each row contains `Region-Width / 8` bytes,
-starting at `Region-X / 8` in the full frame. Body length must equal
-`(Region-Width / 8) × Region-Height`.
-
-If the displayed ETag is absent or has expired from history, the server returns
-`X-Slate-Payload-Type: full`, full-screen region metadata, and the complete
-48,000-byte frame, plus `X-Slate-Fallback` explaining why. The device uses this
-fallback to perform a full panel refresh and resets the partial counter. This
-exception avoids applying an incomplete delta and does not require a second
-framebuffer. A planned full refresh also requests and receives the full
-payload. For a delta, the ESP32 downloads the crop into its existing
-48,000-byte buffer and passes the crop coordinates to the panel partial-window
-driver.
-
-The refresh policy chooses the mode before fetching: the first update is full,
-then up to two successful partial updates are followed by a full update (the
-count is configurable). Failed downloads or panel updates do not advance that
-counter. An unchanged frame does not consume a refresh. This policy bounds
-ghosting while allowing the controller to update only the region whose content
-changed.
-
 ## Security
 
 Serve the device endpoint over HTTPS. The ESP32 must validate the server
@@ -135,6 +85,18 @@ the next frame request after expiry, it renders again and derives a new ETag.
 An edit to the mounted layout file invalidates the cached frame immediately,
 so the next frame request renders the edited layout without restarting the
 container.
+
+When the firmware has a complete displayed frame and its framebuffer is known
+to match the panel, it compares a newly downloaded full frame with that buffer
+as each row arrives. It overwrites the old bytes in place and records the
+smallest changed rectangle, rounded horizontally to whole bytes (eight
+pixels). The partial panel transfer reads that rectangle using the full frame's
+100-byte row stride. This keeps the HTTP frame contract unchanged and requires
+only the existing 48,000-byte framebuffer plus one 100-byte scanline scratch
+buffer. The first update, and any update after an interrupted transfer or
+uncertain panel operation, uses a full refresh. Successful partial refreshes
+follow the configured cadence, with a full refresh after two partial updates
+by default.
 The firmware's polling cadence is a separate setting: it can poll more often
 than the server renders, using `If-None-Match` to avoid receiving duplicate
 bytes. Keep panel updates at or above the panel's minimum refresh interval even

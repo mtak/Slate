@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "frame_diff.h"
 #include "refresh_policy.h"
 #include "wifi_retry.h"
 
@@ -110,6 +111,20 @@ void testRefreshPolicyUsesConfiguredPartialCount() {
   expect(slate::chooseRefreshMode(true, 0, 0) == RefreshMode::Full,
          "a configured count of zero disables partial refreshes");
 }
+
+void testFrameDiffBuildsByteAlignedChangedBounds() {
+  slate::FrameDiff diff;
+  expect(!diff.region().changed, "unchanged frame has no changed region");
+  diff.record(12, 30);
+  diff.record(15, 27);
+  diff.record(4, 33);
+  const slate::ChangedRegion region = diff.region();
+  expect(region.changed, "changed bytes produce a region");
+  expect(region.x == 32 && region.y == 27,
+         "region starts at the first changed byte and row");
+  expect(region.width == 96 && region.height == 7,
+         "region covers changed byte and row bounds");
+}
 }  // namespace
 
 int main() {
@@ -118,6 +133,7 @@ int main() {
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
   testWifiRetryBackoffIsBounded();
   testRefreshPolicyUsesConfiguredPartialCount();
+  testFrameDiffBuildsByteAlignedChangedBounds();
   puts("Firmware tests passed");
   return 0;
 }
