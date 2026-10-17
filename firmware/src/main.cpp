@@ -9,6 +9,7 @@
 
 #include "frame.h"
 #include "frame_diff.h"
+#include "frame_ingestion.h"
 #include "refresh_policy.h"
 #include "device_hostname.h"
 #include "wifi_retry.h"
@@ -106,42 +107,36 @@ bool fetchFrame(bool comparePartial) {
     request.end();
     return false;
   }
-  const bool validFrame = status == HTTP_CODE_OK &&
-      request.header("Content-Type") == "application/vnd.slate.frame" &&
-      request.getSize() == slate::kFrameSize;
+  const String contentType = request.header("Content-Type");
+  const String responseEtag = request.header("ETag");
+  const bool validFrame = slate::isValidFrameResponse(
+      status, contentType.c_str(), request.getSize(), responseEtag.c_str());
   if (validFrame) {
     WiFiClient *stream = request.getStreamPtr();
     frameBufferMatchesDisplay = false;
     slate::FrameDiff diff;
-    uint8_t incomingRow[slate::kBytesPerRow];
-    ok = true;
-    for (uint16_t y = 0; y < slate::kDisplayHeight; ++y) {
-      const size_t count = stream->readBytes(incomingRow, sizeof(incomingRow));
-      if (count != sizeof(incomingRow)) {
-        ok = false;
-        break;
-      }
-      if (comparePartial) diff.compareAndReplaceRow(frame, y, incomingRow);
-      else memcpy(frame + static_cast<size_t>(y) * slate::kBytesPerRow,
-                  incomingRow, sizeof(incomingRow));
-    }
+    ok = slate::ingestFrameRows(frame, comparePartial, diff,
+                                [](void *context, uint8_t *row,
+                                   size_t rowSize) -> size_t {
+                                  WiFiClient *client =
+                                      static_cast<WiFiClient *>(context);
+                                  return client == nullptr
+                                             ? 0
+                                             : client->readBytes(row, rowSize);
+                                },
+                                stream);
     if (ok) {
-      const String responseEtag = request.header("ETag");
-      if (responseEtag.length() == 0) {
-        ok = false;
-      } else {
-        lastEtag = responseEtag;
-        pendingRequiresFullRefresh = !comparePartial;
-        const slate::ChangedRegion changed = diff.region();
-        pendingHasChanges = changed.changed || !comparePartial;
-        pendingRegionX = changed.changed ? changed.x : 0;
-        pendingRegionY = changed.changed ? changed.y : 0;
-        pendingRegionWidth = changed.changed ? changed.width : slate::kDisplayWidth;
-        pendingRegionHeight = changed.changed ? changed.height : slate::kDisplayHeight;
-        if (!changed.changed && comparePartial) {
-          displayedEtag = lastEtag;
-          frameBufferMatchesDisplay = true;
-        }
+      lastEtag = responseEtag;
+      pendingRequiresFullRefresh = !comparePartial;
+      const slate::ChangedRegion changed = diff.region();
+      pendingHasChanges = changed.changed || !comparePartial;
+      pendingRegionX = changed.changed ? changed.x : 0;
+      pendingRegionY = changed.changed ? changed.y : 0;
+      pendingRegionWidth = changed.changed ? changed.width : slate::kDisplayWidth;
+      pendingRegionHeight = changed.changed ? changed.height : slate::kDisplayHeight;
+      if (!changed.changed && comparePartial) {
+        displayedEtag = lastEtag;
+        frameBufferMatchesDisplay = true;
       }
     }
   }
