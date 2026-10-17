@@ -64,8 +64,25 @@ CA certificate published by its certificate authority. For a private
 certificate, use the private root CA certificate supplied by the deployment
 operator. The certificate served by the endpoint is usually the device/server
 certificate, and a TLS server often does not send its root CA; do not assume
-that copying the first certificate shown by a TLS inspection command gives you
-the right trust anchor.
+that the endpoint will provide its root CA. The quick setup below uses the
+currently presented server certificate as a pinned certificate instead.
+
+For a quick home setup, you can capture the certificate currently presented by
+the endpoint on its first connection. From `firmware/`, set the host name and
+save the first certificate in the presented chain as `server-ca.pem`:
+
+```sh
+server_host=display.example.invalid
+openssl s_client -connect "${server_host}:443" -servername "$server_host" \
+  -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > server-ca.pem
+```
+
+This trusts the certificate received during that connection; it does not
+independently confirm that the certificate belongs to your server. Run it only
+when you trust the network and endpoint you are connecting to. If the server
+certificate changes or renews, capture the new certificate and update the
+firmware configuration. Obtaining the CA from the deployment operator or its
+certificate authority avoids pinning an individual server certificate.
 
 Save the CA certificate in PEM format as `server-ca.pem`. It should contain a
 `BEGIN CERTIFICATE` line, the base64 certificate data, and an `END CERTIFICATE`
