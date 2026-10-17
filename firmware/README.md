@@ -59,27 +59,29 @@ pinned PlatformIO CLI. The first build downloads the pinned ESP32 platform and
 toolchain into `.platformio/`; build outputs go into `.pio/`. Both directories
 are ignored by Git.
 
-The current sketch runs a one-shot display-profile diagnostic at boot. The
-default `slate_esp32` environment uses Waveshare's `7.5V2` profile; the
-`slate_esp32_v2_old` environment uses `7.5V2_old`. Both draw a labeled
-800×480 test pattern and time out rather than waiting forever for the panel's
-busy signal.
+The default `slate_esp32` environment runs the frame client with Waveshare's
+`7.5V2` profile; `slate_esp32_v2_old` selects `7.5V2_old`. Both panel profiles
+use the same 800×480 frame contract and busy-signal timeout. The initial frame
+is a full refresh, followed by the configured partial/full cadence.
 
-Build and flash each candidate separately:
+Build both frame-client profiles and both one-shot diagnostic profiles:
 
 ```sh
-make build
-make upload PORT=/dev/ttyUSB0
-make monitor PORT=/dev/ttyUSB0
+./.venv/bin/pio run -e slate_esp32
 ./.venv/bin/pio run -e slate_esp32_v2_old
-./.venv/bin/pio run -e slate_esp32_v2_old --target upload --upload-port /dev/ttyUSB0
+./.venv/bin/pio run -e slate_esp32_partial_diag
+./.venv/bin/pio run -e slate_esp32_partial_diag_v2_old
 ```
 
-The e-paper performs a full refresh for each diagnostic. Record the profile,
-firmware revision, orientation, edge clipping, visible pattern/text, and whether
-the serial monitor reports a busy timeout. Do not infer a successful profile
-from compilation alone; the physical result decides which profile is selected.
-Panel profile selection is tracked in [hardware notes](../docs/hardware.md).
+The one-shot panel diagnostic environments each perform a full-frame baseline,
+three 160×80 partial-window changes, and a final full refresh. To flash a
+diagnostic, use `pio run -e <diagnostic-env> --target upload
+--upload-port /dev/ttyUSB0`; then open the serial monitor. Close the monitor
+before uploading another build. Record the profile, visible result, and serial
+busy status. The regular `slate_esp32` and `slate_esp32_v2_old` environments
+run the configured network frame client.
+Panel profile selection and attached-device results are tracked in
+[hardware notes](../docs/hardware.md).
 
 The device requests the authenticated v1 frame immediately at startup and then
 polls at `SLATE_POLL_INTERVAL_SECONDS` (default 60). Set
@@ -89,13 +91,21 @@ many partial updates occur between full refreshes. The first displayed frame
 is always a full refresh; then the firmware performs the configured number of
 partial refreshes before each full refresh. Set it to `0` to disable partial
 refreshes. Partial refreshes can leave ghosting, so the periodic full refresh
-clears residual images. Their visible behavior depends on panel revision; on
-the attached V2 panel, partial and full updates still flashed similarly.
+clears residual images. For a partial update, the client sends the ETag of the
+displayed frame to the server. When that frame is still in the server's recent
+history, the server returns a packed, byte-aligned crop covering the pixels
+that changed; otherwise it returns the full frame as a safe fallback. The
+ESP32 stores either response in its existing 48,000-byte frame buffer, so it
+does not need a second full framebuffer. A history miss makes the client use a
+full panel refresh and restart the partial counter; a delta is sent to the
+panel using the normal 2-partials/1-full policy.
 
-The client validates the media type, v1 format version, 800×480 dimensions, and
-48,000-byte payload before it can replace the displayed frame. It sends the
-server ETag on later polls, skips 304 responses and identical payloads, and
-keeps a validated pending frame until the refresh interval permits an update.
+The client validates the media type, v1 format version, full 800×480 display
+dimensions, region bounds and byte alignment, and the expected payload length
+(48,000 bytes for a full frame or `Region-Width / 8 × Region-Height` for a
+delta) before accepting an update. It sends the latest server ETag on later
+polls, skips 304 responses and identical payloads, and keeps a validated
+pending update until the refresh interval permits an update.
 Transient connection or response failures leave the current panel image alone;
 the next poll retries the request. The V2 and V2-old panel profiles have
 separate partial-refresh driver sequences; verify partial-refresh behavior on

@@ -104,6 +104,36 @@ When the frame changes, the server returns `200 OK`, a new ETag, and the full
 frame. A request after the render interval expires can trigger rendering before
 the server compares ETags.
 
+For panel updates, the device also sends `X-Slate-Refresh-Mode` and, for a
+partial refresh, `X-Slate-Displayed-ETag`. If that displayed frame is among the
+server's eight most recent rendered frames, the endpoint returns `200 OK` with
+`X-Slate-Payload-Type: delta` and a packed crop of the smallest byte-aligned
+bounding rectangle that contains all changed bytes. `X-Slate-Region-X`,
+`-Y`, `-Width`, and `-Height` describe the crop. Rows have no padding and each
+contains `Region-Width / 8` bytes. If the displayed frame is no longer in
+history, the endpoint returns `X-Slate-Payload-Type: full`, the complete frame,
+and full-screen region metadata. The device responds to this fallback with a
+full panel refresh and resets its partial counter; it does not need to retain a
+second framebuffer. The full protocol contract is in
+[`docs/architecture.md`](../docs/architecture.md#changed-area-frame-responses).
+
+For a manual partial-mode request, send the latest received ETag in
+`If-None-Match` and the ETag actually shown on the panel in
+`X-Slate-Displayed-ETag`:
+
+```sh
+curl -D headers.txt -o frame.bin \
+  -H "Authorization: Bearer $SLATE_DEVICE_TOKEN" \
+  -H 'If-None-Match: "latest-frame-sha256"' \
+  -H 'X-Slate-Refresh-Mode: partial' \
+  -H 'X-Slate-Displayed-ETag: "displayed-frame-sha256"' \
+  http://127.0.0.1:8000/api/frame/v1
+```
+
+Inspect `X-Slate-Payload-Type` before interpreting `frame.bin`: `full` is the
+normal 48,000-byte frame; `delta` is only the described crop. Do not treat a
+delta body as a complete frame.
+
 ## Docker Compose
 
 From the repository root, start the service with:

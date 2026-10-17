@@ -84,23 +84,26 @@ default and retain `7.5V2_old` as a validated alternative.
 
 ### Partial-refresh comparison (2026-10-17)
 
-A controlled comparison used four high-contrast frames, with two partial
-updates between full updates. Serial output confirmed that partial updates ran,
-but the user observed no visible difference in flashing between partial and
-full updates. On this panel, partial refresh therefore has no demonstrated
-visible flashing benefit; keep the cadence configurable and do not claim it
-reduces flashing. This observation does not identify the panel revision. No
-additional markings were available without opening the case, which the user
-does not want to do.
+A first controlled comparison used four high-contrast full-screen frames, with
+two partial updates between full updates. Serial output confirmed the partial
+updates ran, but the user saw no clear difference in flashing. A follow-up used
+a 160×80 partial window over a static diagnostic frame. The user observed
+flashing in the subwindow followed by the checkerboard appearing there. This
+confirms the small-window update works and confines the visible activity to
+that window, although it still flashes locally. The test then performed a full
+refresh to restore the baseline and clear ghosting. Both `7.5V2` and
+`7.5V2_old` diagnostic builds compiled; the user-visible small-window result
+was observed with `7.5V2`. This does not identify the panel revision. The
+device's saved original firmware was restored after the diagnostic.
 
 This result differs from Waveshare's [7.5-inch HAT manual](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual),
 which says a full refresh flashes several times to clear afterimages and a
 partial refresh has no flickering effect. The manual lists approximate refresh
 times of 4 seconds full and 0.4 seconds partial, with actual results varying.
-The firmware test did invoke the partial initialization and update routines,
-but used a partial window covering the entire 800×480 panel. A useful follow-up
-is to establish a stable full-screen image, then change only a small region in
-partial mode and observe whether the rest of the image stays still and whether
-the changed region avoids the global flash. Follow with a full refresh to clear
-ghosting, as Waveshare recommends after several partial updates. The physical
-test remains outstanding because the device is not connected to this session.
+The Waveshare manual describes partial refresh as having no flickering effect;
+on this panel the small-window result shows that this should be interpreted as
+avoiding the full-screen flash, not as guaranteeing a completely flash-free
+changed region. A full refresh after partial updates remains useful for clearing
+ghosting, as Waveshare recommends after several partial updates. The exact
+panel revision remains unknown because its markings are concealed by the case,
+which the user does not want to remove.

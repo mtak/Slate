@@ -28,6 +28,11 @@ bool havePanelRefreshAttempt = false;
 String lastEtag;
 String displayedEtag;
 bool frameBufferInvalidated = false;
+bool pendingRequiresFullRefresh = false;
+uint16_t pendingRegionX = 0;
+uint16_t pendingRegionY = 0;
+uint16_t pendingRegionWidth = slate::kDisplayWidth;
+uint16_t pendingRegionHeight = slate::kDisplayHeight;
 uint32_t lastPanelRefreshAt = 0;
 uint32_t partialRefreshesSinceFull = 0;
 constexpr uint32_t kWatchdogTimeoutSeconds = 60;
@@ -60,7 +65,7 @@ constexpr bool kWifiConfigured = true;
 constexpr bool kWifiConfigured = false;
 #endif
 
-bool fetchFrame() {
+bool fetchFrame(bool partialRefresh) {
   frameBufferInvalidated = false;
 #if !defined(SLATE_SERVER_BASE_URL) || !defined(SLATE_DEVICE_TOKEN)
   Serial.println("Frame endpoint is not configured");
@@ -85,9 +90,16 @@ bool fetchFrame() {
   }
   request.addHeader("Authorization", String("Bearer ") + SLATE_DEVICE_TOKEN);
   const char *headerKeys[] = {"ETag", "Content-Type", "X-Slate-Format-Version",
-                              "X-Slate-Width", "X-Slate-Height"};
+                              "X-Slate-Width", "X-Slate-Height",
+                              "X-Slate-Payload-Type",
+                              "X-Slate-Region-X", "X-Slate-Region-Y",
+                              "X-Slate-Region-Width", "X-Slate-Region-Height"};
   request.collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
   if (lastEtag.length() > 0) request.addHeader("If-None-Match", lastEtag);
+  request.addHeader("X-Slate-Refresh-Mode", partialRefresh ? "partial" : "full");
+  if (partialRefresh && haveDisplayedFrame && displayedEtag.length() > 0) {
+    request.addHeader("X-Slate-Displayed-ETag", displayedEtag);
+  }
   request.setTimeout(10000);
   const int status = request.GET();
   bool ok = false;
@@ -100,17 +112,40 @@ bool fetchFrame() {
       request.header("X-Slate-Format-Version") == "1" &&
       request.header("X-Slate-Width") == "800" &&
       request.header("X-Slate-Height") == "480";
-  if (status == HTTP_CODE_OK && validMetadata && request.getSize() == slate::kFrameSize) {
+  const int regionX = request.header("X-Slate-Region-X").toInt();
+  const int regionY = request.header("X-Slate-Region-Y").toInt();
+  const int regionWidth = request.header("X-Slate-Region-Width").toInt();
+  const int regionHeight = request.header("X-Slate-Region-Height").toInt();
+  const bool validRegion = regionX >= 0 && regionY >= 0 &&
+      regionWidth > 0 && regionHeight > 0 &&
+      regionX + regionWidth <= slate::kDisplayWidth &&
+      regionY + regionHeight <= slate::kDisplayHeight &&
+      regionX % 8 == 0 && regionWidth % 8 == 0 &&
+      request.getSize() == (regionWidth / 8) * regionHeight;
+  const String payloadType = request.header("X-Slate-Payload-Type");
+  const bool fullFrame = status == HTTP_CODE_OK && payloadType == "full" && validRegion &&
+      regionX == 0 && regionY == 0 &&
+      regionWidth == slate::kDisplayWidth &&
+      regionHeight == slate::kDisplayHeight &&
+      request.getSize() == slate::kFrameSize;
+  const bool partialFrame = partialRefresh && status == HTTP_CODE_OK &&
+      payloadType == "delta" && validRegion;
+  if (validMetadata && (fullFrame || partialFrame)) {
     WiFiClient *stream = request.getStreamPtr();
     frameBufferInvalidated = true;
-    const size_t count = stream->readBytes(frame, slate::kFrameSize);
-    ok = count == slate::kFrameSize;
+    const size_t count = stream->readBytes(frame, request.getSize());
+    ok = count == static_cast<size_t>(request.getSize());
     if (ok) {
       const String responseEtag = request.header("ETag");
       if (responseEtag.length() == 0) {
         ok = false;
       } else {
         lastEtag = responseEtag;
+        pendingRequiresFullRefresh = partialRefresh && fullFrame;
+        pendingRegionX = regionX;
+        pendingRegionY = regionY;
+        pendingRegionWidth = regionWidth;
+        pendingRegionHeight = regionHeight;
         frameBufferInvalidated = false;
       }
     }
@@ -199,9 +234,14 @@ void sleepPanel() {
 
 void pollForFrame() {
   const uint32_t now = millis();
+  const slate::RefreshMode plannedRefreshMode = slate::chooseRefreshMode(
+      haveDisplayedFrame, partialRefreshesSinceFull,
+      kPartialRefreshesBeforeFull);
+  const bool plannedPartialRefresh =
+      plannedRefreshMode == slate::RefreshMode::Partial;
   if (static_cast<int32_t>(now - nextPollAt) >= 0) {
     nextPollAt = now + kPollIntervalMs;
-    if (WiFi.status() == WL_CONNECTED && fetchFrame()) {
+    if (WiFi.status() == WL_CONNECTED && fetchFrame(plannedPartialRefresh)) {
       if (!haveDisplayedFrame || lastEtag != displayedEtag) {
         havePendingFrame = true;
       } else {
@@ -217,11 +257,13 @@ void pollForFrame() {
     Serial.println("Frame changed; waiting for minimum panel refresh interval");
     return;
   }
+  const bool partialRefresh = plannedPartialRefresh && !pendingRequiresFullRefresh;
+  const slate::RefreshMode refreshMode = partialRefresh
+      ? slate::RefreshMode::Partial : slate::RefreshMode::Full;
+  if (plannedPartialRefresh && pendingRequiresFullRefresh) {
+    Serial.println("Delta history unavailable; using a full refresh");
+  }
   DEV_Module_Init();
-  const slate::RefreshMode refreshMode = slate::chooseRefreshMode(
-      haveDisplayedFrame, partialRefreshesSinceFull,
-      kPartialRefreshesBeforeFull);
-  const bool partialRefresh = refreshMode == slate::RefreshMode::Partial;
   if (!initializePanel(partialRefresh)) {
     Serial.println("Panel initialization failed or timed out; keeping current display");
     DEV_Module_Exit();
@@ -231,11 +273,13 @@ void pollForFrame() {
   havePanelRefreshAttempt = true;
   if (partialRefresh) {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
-    EPD_7IN5_V2_Display_Partial_old(frame, 0, 0,
-        slate::kDisplayWidth, slate::kDisplayHeight);
+    EPD_7IN5_V2_Display_Partial_old(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth,
+        pendingRegionY + pendingRegionHeight);
 #else
-    EPD_7IN5_V2_Display_Part(frame, 0, 0,
-        slate::kDisplayWidth, slate::kDisplayHeight);
+    EPD_7IN5_V2_Display_Part(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth,
+        pendingRegionY + pendingRegionHeight);
 #endif
   } else {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
