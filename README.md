@@ -4,6 +4,10 @@ Slate is an ESP32 driven, 800×480 monochrome e-paper information display. A
 server combines data from independent providers, renders a frame, and serves it
 to the display. The device checks for changes and updates the panel when needed.
 
+![Slate displaying its upcoming events dashboard](docs/prototype.png)
+
+*A prototype Slate display showing an information dashboard on a 7.5-inch e-paper panel.*
+
 The repository contains the firmware and server application. Production
 deployment is environment-specific; this public repository documents the
 application requirements and local development workflow without relying on a
