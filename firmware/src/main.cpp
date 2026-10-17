@@ -4,7 +4,6 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
-#include <string.h>
 
 #include "frame.h"
 #include "wifi_retry.h"
@@ -27,11 +26,12 @@ constexpr bool kOldProfile = true;
 constexpr bool kOldProfile = false;
 #endif
 uint8_t frame[slate::kFrameSize];
-uint8_t downloadedFrame[slate::kFrameSize];
 bool haveDisplayedFrame = false;
 bool havePendingFrame = false;
 bool havePanelRefreshAttempt = false;
 String lastEtag;
+String displayedEtag;
+bool frameBufferInvalidated = false;
 uint32_t lastPanelRefreshAt = 0;
 constexpr uint32_t kWatchdogTimeoutSeconds = 60;
 constexpr uint32_t kReconnectInitialDelayMs = 1000;
@@ -55,6 +55,7 @@ constexpr bool kWifiConfigured = false;
 #endif
 
 bool fetchFrame() {
+  frameBufferInvalidated = false;
 #if !defined(SLATE_SERVER_BASE_URL) || !defined(SLATE_DEVICE_TOKEN)
   Serial.println("Frame endpoint is not configured");
   return false;
@@ -95,7 +96,8 @@ bool fetchFrame() {
       request.header("X-Slate-Height") == "480";
   if (status == HTTP_CODE_OK && validMetadata && request.getSize() == slate::kFrameSize) {
     WiFiClient *stream = request.getStreamPtr();
-    const size_t count = stream->readBytes(downloadedFrame, slate::kFrameSize);
+    frameBufferInvalidated = true;
+    const size_t count = stream->readBytes(frame, slate::kFrameSize);
     ok = count == slate::kFrameSize;
     if (ok) {
       const String responseEtag = request.header("ETag");
@@ -103,6 +105,7 @@ bool fetchFrame() {
         ok = false;
       } else {
         lastEtag = responseEtag;
+        frameBufferInvalidated = false;
       }
     }
   }
@@ -185,13 +188,14 @@ void pollForFrame() {
   if (static_cast<int32_t>(now - nextPollAt) >= 0) {
     nextPollAt = now + kPollIntervalMs;
     if (WiFi.status() == WL_CONNECTED && fetchFrame()) {
-      if (!haveDisplayedFrame || memcmp(frame, downloadedFrame, slate::kFrameSize) != 0) {
-        memcpy(frame, downloadedFrame, slate::kFrameSize);
+      if (!haveDisplayedFrame || lastEtag != displayedEtag) {
         havePendingFrame = true;
       } else {
         havePendingFrame = false;
         Serial.println("Frame payload unchanged");
       }
+    } else if (frameBufferInvalidated) {
+      havePendingFrame = false;
     }
   }
   if (!havePendingFrame) return;
@@ -227,6 +231,7 @@ void pollForFrame() {
   }
   haveDisplayedFrame = true;
   havePendingFrame = false;
+  displayedEtag = lastEtag;
   Serial.println("Updated panel with fetched frame");
   DEV_Module_Exit();
 }
