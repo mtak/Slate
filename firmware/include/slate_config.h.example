@@ -1,9 +1,13 @@
 #pragma once
 
 // Copy this file to slate_config.h for local device configuration.
-// Keep real values out of Git. This bootstrap sketch does not read this file.
+// Keep real values out of Git.
 
 #define SLATE_WIFI_SSID "replace-with-local-network-name"
 #define SLATE_WIFI_PASSWORD "replace-with-local-network-password"
-#define SLATE_SERVER_BASE_URL "https://replace-with-your-server"
-#define SLATE_DEVICE_TOKEN "replace-with-a-local-device-token"
+#define SLATE_SERVER_BASE_URL "https://display.example.invalid"
+#define SLATE_DEVICE_TOKEN "replace-with-a-random-local-device-token"
+#define SLATE_TLS_VERIFY true
+// Paste the PEM CA certificate that issued the server certificate.
+// For a public CA, use its root CA. For a private CA, use your own root.
+#define SLATE_ROOT_CA "-----BEGIN CERTIFICATE-----\nreplace-with-PEM-certificate\n-----END CERTIFICATE-----\n"
