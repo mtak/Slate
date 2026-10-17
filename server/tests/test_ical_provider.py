@@ -47,6 +47,8 @@ END:VCALENDAR
         get.assert_called_once_with(
             "https://calendar.example.invalid/private.ics", timeout=15, allow_redirects=False
         )
+        self.assertEqual(data["greeting"], "Calendar")
+        self.assertEqual(data["headline"], "Upcoming events")
         self.assertEqual([event["title"] for event in data["events"]], [
             "Household event", "All day event", "Household event", "Household event",
         ])

@@ -31,6 +31,17 @@ class SampleProvider:
         }
 
 
+def _calendar_data(events: list[dict[str, str]], timezone: ZoneInfo) -> dict[str, object]:
+    today = datetime.now(timezone).strftime("%A, %B %-d")
+    return {
+        "greeting": "Calendar",
+        "date": today,
+        "headline": "Upcoming events",
+        "message": "From your shared calendar.",
+        "events": events,
+    }
+
+
 class GoogleCalendarProvider:
     """Read upcoming events from a calendar shared with a service account."""
 
@@ -84,7 +95,7 @@ class GoogleCalendarProvider:
                 continue
             events.append({"title": item.get("summary") or "(Untitled event)",
                            "date": date, "time": event_time})
-        return {"events": events}
+        return _calendar_data(events, self.timezone)
 
 
 class ICalendarProvider:
@@ -135,7 +146,8 @@ class ICalendarProvider:
             summary = str(item.get("summary") or "(Untitled event)")
             dated_events.append((sort_at, {"title": summary, "date": date, "time": event_time}))
         dated_events.sort(key=lambda event: event[0])
-        return {"events": [event for _, event in dated_events[:self.max_results]]}
+        events = [event for _, event in dated_events[:self.max_results]]
+        return _calendar_data(events, self.timezone)
 
 
 def provider_from_environment():
