@@ -25,3 +25,6 @@ venv/
 # Local generated frames and runtime data
 server/data/
 server/output/
+
+# Playwright
+.playwright-mcp/
