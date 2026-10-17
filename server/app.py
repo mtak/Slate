@@ -7,7 +7,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
-from providers import SampleProvider
+from providers import CurrentDateProvider, DEFAULT_DATE_FORMAT, SampleProvider
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
@@ -85,8 +85,15 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS)
             stat = os.stat(layout_file)
             return stat.st_mtime_ns, stat.st_size
 
-        provider = SampleProvider()
-        frame_provider = lambda: Renderer.from_file(layout_file).render(provider.get_data())
+        providers = (SampleProvider(), CurrentDateProvider(os.environ.get("SLATE_DATE_FORMAT", DEFAULT_DATE_FORMAT)))
+
+        def render_frame():
+            data = {}
+            for provider in providers:
+                data.update(provider.get_data())
+            return Renderer.from_file(layout_file).render(data)
+
+        frame_provider = render_frame
         cache_key_provider = layout_file_signature
     cached_frame = CachedFrame(frame_provider, refresh_seconds, cache_key_provider)
 

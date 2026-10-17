@@ -8,7 +8,8 @@ The version 1 byte layout is defined in [the image
 contract](../docs/architecture.md#image-contract). The renderer uses Pillow
 and reads its positions, text sizes, and block types from `layout.json`. Data
 sources implement `Provider.get_data()` and return a mapping of names to
-values; `SampleProvider` supplies deterministic example values.
+values; `SampleProvider` supplies deterministic example values and
+`CurrentDateProvider` supplies the current local date.
 
 Install the server dependency and run the sample server:
 
@@ -49,8 +50,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
-`SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
+Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT`,
+`SLATE_REFRESH_SECONDS`, and `SLATE_DATE_FORMAT` from `.env` (defaults 8000,
+60 seconds, and `%A, %B %d`). It mounts
 `server/` into the container as read-only, so layout edits remain on the host
 and cannot be changed from inside the container. Mounting the directory keeps
 atomic file saves from being hidden behind a stale single-file mount. The
@@ -63,9 +65,14 @@ To add a data source, implement the small `Provider` interface in
 `providers.py`; keep service credentials in local or deployment configuration.
 To rearrange the sample content, edit `layout.json`. Supported blocks are
 `text` (with a provider `key`, x/y position, and font `size`), `line` (x/y and
-x2/y2 endpoints, optional `width`), and `rectangle` (x/y, `width`, `height`,
-optional `stroke`). The canvas size is fixed at 800×480 to match the frame
-contract.
+x2/y2 endpoints, optional `width`), `rectangle` (x/y, `width`, `height`,
+optional `stroke`), and `calendar`. A calendar block draws the provider's
+`weekday`, `day`, and `month` values inside a calendar icon. Change its
+position, dimensions, outline, and weekday/day/month font sizes in
+`layout.json`. The date format defaults to `%A, %B %d`; set `SLATE_DATE_FORMAT`
+to any Python `strftime` format string to change it. Weekday and month names
+follow the server's locale. The canvas size is fixed at 800×480 to match the
+frame contract.
 
 ![Rendered sample frame from the editable layout](../docs/frame-preview.png)
 

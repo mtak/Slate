@@ -22,9 +22,10 @@ must not know about the display hardware. Layout/rendering code should accept
 provider data and produce an 800×480, 1-bit image.
 
 The renderer's provider interface is `get_data()`, returning named values for
-layout text blocks. The JSON layout defines block type, position, and style;
-the initial renderer supports text, lines, and outlined rectangles. Pillow
-converts the result to the v1 raw frame bytes.
+layout blocks. The current date provider supplies a configurable formatted
+date plus weekday, day, and month values for the calendar block. The JSON
+layout defines block type, position, and style. Pillow converts the result to
+the v1 raw frame bytes.
 
 The ESP32 owns Wi-Fi connectivity, authenticated image retrieval, change
 detection, and panel driving. It should hold no calendar or home automation
