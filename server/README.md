@@ -89,6 +89,29 @@ Editing provider code requires restarting the server; editing only
 
 ## Google Calendar
 
+For the simplest setup, use Google's secret iCal address as a private feed
+URL. Anyone who obtains that URL can read the calendar, so do not send it in
+chat, add it to source control, or include it in screenshots or logs. You can
+revoke it by resetting the secret address in Google Calendar. Keep it in the
+ignored local `.env` file instead:
+
+```dotenv
+SLATE_PROVIDER=ical
+SLATE_ICAL_URL=https://calendar.google.com/calendar/ical/REDACTED/private-REDACTED/basic.ics
+SLATE_TIMEZONE=Europe/Amsterdam
+SLATE_CALENDAR_MAX_EVENTS=6
+SLATE_CALENDAR_DAYS_AHEAD=14
+```
+
+Use the address shown under **Settings → Integrate calendar → Secret address
+in iCal format**. The feed is fetched over HTTPS with redirects disabled, and
+its URL is never written to server logs. The provider expands recurring events
+and converts event times to the configured IANA timezone. `.env` is ignored by
+Git; never insert the real URL into `.env.example` or share it in support logs.
+
+If you prefer not to use a bearer URL, the service-account setup below provides
+read-only Google API access limited by sharing to a specific calendar.
+
 The first live integration uses a Google service account with read-only access
 to one calendar. This suits a private household server: no user sign-in or
 refresh token is stored, and Google credentials stay on the server. Create a

@@ -11,6 +11,7 @@ services:
       SLATE_REQUIRE_HTTPS: ${SLATE_REQUIRE_HTTPS:-true}
       SLATE_LAYOUT_PATH: /config/layout.json
       SLATE_PROVIDER: ${SLATE_PROVIDER:-sample}
+      SLATE_ICAL_URL: ${SLATE_ICAL_URL:-}
       SLATE_GOOGLE_CREDENTIALS: /run/secrets/google-calendar-service-account.json
       SLATE_GOOGLE_CALENDAR_ID: ${SLATE_GOOGLE_CALENDAR_ID:-}
       SLATE_TIMEZONE: ${SLATE_TIMEZONE:-UTC}
