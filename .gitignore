@@ -1,0 +1,25 @@
+# Local credentials and deployment settings
+.env
+.env.*
+!.env.example
+firmware/secrets.*
+server/secrets.*
+
+# Firmware build outputs and local configuration
+firmware/build/
+firmware/.pio/
+firmware/sdkconfig
+firmware/sdkconfig.old
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local generated frames and runtime data
+server/data/
+server/output/
