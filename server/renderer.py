@@ -47,9 +47,12 @@ class Renderer:
             size = block.get("size", 24)
             if not isinstance(size, int) or size < 1:
                 raise ValueError("text size must be a positive integer")
+            bold = block.get("bold", False)
+            if not isinstance(bold, bool):
+                raise ValueError("text bold must be a boolean")
             font = ImageFont.load_default(size=size)
             value = str(data[key])
-            draw.text((x, y), value, font=font, fill=0)
+            draw.text((x, y), value, font=font, fill=0, stroke_width=1 if bold else 0, stroke_fill=0)
         elif kind == "wrapped_text":
             key = block.get("key")
             if not isinstance(key, str) or key not in data:

@@ -35,7 +35,7 @@ The layout supports these block types:
 
 | Type | Required fields | Optional fields | Effect |
 | --- | --- | --- | --- |
-| `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
+| `text` | `key` | `x`, `y`, `size`, `bold` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`; `bold: true` adds a bold stroke. |
 | `wrapped_text` | `key`, `max_width` | `x`, `y`, `size`, `max_lines`, `line_height` | Wrap a provider value at word boundaries within a pixel width, and clip excess lines with an ellipsis. Defaults: position `(0, 0)`, size `24`, three lines, line height `size + 6`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |

@@ -56,20 +56,20 @@ class DailyAffirmationProvider:
     """Return one bundled affirmation selected for the current local date."""
 
     AFFIRMATIONS = (
-        "Listen, bitch: you've handled worse. Handle this.",
-        "Listen, bitch: you're building a life, not racing anyone.",
-        "Listen, bitch: that doubt can sit down. You know your stuff.",
-        "Listen, bitch: you deserve rest. Take the damn break.",
-        "Listen, bitch: take up space. Your ideas belong here.",
-        "Listen, bitch: you can mess up and still be a badass.",
-        "Listen, bitch: changing your mind is allowed. That's growth.",
-        "Listen, bitch: stop shrinking your plans for their comfort.",
-        "Listen, bitch: you deserve your own kindness, right now.",
-        "Listen, bitch: one small step counts. Do the next damn thing.",
-        "Listen, bitch: your boundaries are valid. Keep them.",
-        "Listen, bitch: you've made it through every hard day so far.",
-        "Listen, bitch: celebrate the win. Yes, even that one.",
-        "Listen, bitch: nobody else gets to set your worth.",
+        "You've handled worse. Handle this.",
+        "You're building a life, not racing anyone.",
+        "That doubt can sit down. You know your stuff.",
+        "You deserve rest. Take the damn break.",
+        "Take up space. Your ideas belong here.",
+        "You can mess up and still be a badass.",
+        "Changing your mind is allowed. That's growth.",
+        "Stop shrinking your plans for their comfort.",
+        "You deserve your own kindness, right now.",
+        "One small step counts. Do the next damn thing.",
+        "Your boundaries are valid. Keep them.",
+        "You've made it through every hard day so far.",
+        "Celebrate the win. Yes, even that one.",
+        "Nobody else gets to set your worth.",
     )
 
     def __init__(self, today: Callable[[], date] | None = None):
@@ -78,7 +78,7 @@ class DailyAffirmationProvider:
     def get_data(self) -> dict[str, str]:
         day = self.today()
         return {
-            "affirmation_heading": "Today's affirmation",
+            "affirmation_heading": "Listen b*tch",
             "affirmation": self.AFFIRMATIONS[day.toordinal() % len(self.AFFIRMATIONS)],
         }
 
