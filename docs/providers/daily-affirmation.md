@@ -13,4 +13,5 @@ if the layout changes.
 
 To add or revise affirmations, edit the `AFFIRMATIONS` tuple in
 [`server/providers.py`](../../server/providers.py). Keep entries original,
-short, broadly appropriate, and readable in the 800×480 monochrome preview.
+short, cheeky, and readable in the 800×480 monochrome preview. The current set
+uses an intentionally blunt, sweary tough-love voice.

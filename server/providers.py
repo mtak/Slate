@@ -56,20 +56,20 @@ class DailyAffirmationProvider:
     """Return one bundled affirmation selected for the current local date."""
 
     AFFIRMATIONS = (
-        "I can take today one step at a time.",
-        "I make room for what matters to me.",
-        "Small progress is still progress.",
-        "I can meet this day with patience.",
-        "I am allowed to learn as I go.",
-        "My effort matters, even when it is quiet.",
-        "I can begin again whenever I need to.",
-        "I bring care and attention to what I do.",
-        "I can focus on the next useful step.",
-        "I have the strength to handle today's challenges.",
-        "I can be proud of how far I have come.",
-        "There is value in taking time to rest.",
-        "I choose progress over perfection.",
-        "I can make today meaningful in my own way.",
+        "Listen, bitch: you've handled worse. Handle this.",
+        "Listen, bitch: you're building a life, not racing anyone.",
+        "Listen, bitch: that doubt can sit down. You know your stuff.",
+        "Listen, bitch: you deserve rest. Take the damn break.",
+        "Listen, bitch: take up space. Your ideas belong here.",
+        "Listen, bitch: you can mess up and still be a badass.",
+        "Listen, bitch: changing your mind is allowed. That's growth.",
+        "Listen, bitch: stop shrinking your plans for their comfort.",
+        "Listen, bitch: you deserve your own kindness, right now.",
+        "Listen, bitch: one small step counts. Do the next damn thing.",
+        "Listen, bitch: your boundaries are valid. Keep them.",
+        "Listen, bitch: you've made it through every hard day so far.",
+        "Listen, bitch: celebrate the win. Yes, even that one.",
+        "Listen, bitch: nobody else gets to set your worth.",
     )
 
     def __init__(self, today: Callable[[], date] | None = None):
