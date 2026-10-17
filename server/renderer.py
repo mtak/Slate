@@ -55,6 +55,8 @@ class Renderer:
         elif kind == "rectangle":
             bounds = (x, y, x + block["width"], y + block["height"])
             draw.rectangle(bounds, outline=0, width=block.get("stroke", 2))
+        elif kind == "calendar":
+            Renderer._draw_calendar(draw, block, data, x, y)
         elif kind == "events":
             events = data.get(block.get("key", "events"), [])
             if not isinstance(events, list):
@@ -79,6 +81,38 @@ class Renderer:
                 draw.text((x, row_y + title_font.size + 2), details, font=detail_font, fill=0)
         else:
             raise ValueError(f"unsupported layout block type: {kind!r}")
+
+    @staticmethod
+    def _draw_calendar(draw: ImageDraw.ImageDraw, block: Mapping, data: Mapping[str, object], x: int, y: int) -> None:
+        width, height = block.get("width", 120), block.get("height", 140)
+        if not isinstance(width, int) or width < 40 or not isinstance(height, int) or height < 60:
+            raise ValueError("calendar width must be at least 40 and height at least 60")
+        stroke = block.get("stroke", 2)
+        draw.rectangle((x, y, x + width, y + height), outline=0, width=stroke)
+        weekday = Renderer._calendar_value(block, data, "weekday_key", "weekday")
+        day = Renderer._calendar_value(block, data, "day_key", "day")
+        month = Renderer._calendar_value(block, data, "month_key", "month")
+        weekday_font = ImageFont.load_default(size=block.get("weekday_size", 16))
+        day_font = ImageFont.load_default(size=block.get("day_size", 48))
+        month_font = ImageFont.load_default(size=block.get("month_size", 20))
+        header_height = max(weekday_font.getbbox(weekday)[3] + 10, 30)
+        draw.line((x, y + header_height, x + width, y + header_height), fill=0, width=stroke)
+        Renderer._draw_centered_text(draw, weekday, weekday_font, x, y + 4, width)
+        Renderer._draw_centered_text(draw, day, day_font, x, y + header_height + 2, width)
+        Renderer._draw_centered_text(draw, month, month_font, x, y + height - month_font.getbbox(month)[3] - 8, width)
+
+    @staticmethod
+    def _calendar_value(block: Mapping, data: Mapping[str, object], key_option: str, default_key: str) -> str:
+        key = block.get(key_option, default_key)
+        if not isinstance(key, str) or key not in data:
+            raise ValueError(f"calendar block references missing data key: {key!r}")
+        return str(data[key])
+
+    @staticmethod
+    def _draw_centered_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, x: int, y: int, width: int) -> None:
+        bounds = draw.textbbox((0, 0), value, font=font)
+        text_width = bounds[2] - bounds[0]
+        draw.text((x + (width - text_width) // 2, y), value, font=font, fill=0)
 
     @staticmethod
     def _truncate_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> str:

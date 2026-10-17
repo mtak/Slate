@@ -38,6 +38,7 @@ The layout supports these block types:
 | `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
+| `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key` | Draw a calendar icon using the `weekday`, `day`, and `month` provider values. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, font sizes `16`/`48`/`20`. |
 | `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`; optional `max_width` clips text with `...` at that many pixels. |
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
@@ -80,6 +81,14 @@ value, `Good morning`, in the image. The sample provider also returns
 `layout.json`. A text block with a key missing from the provider data is an
 error, so keep the layout keys and provider keys in sync.
 
+The server also adds values from `CurrentDateProvider`: `date`, `weekday`,
+`day`, and `month`. The date format defaults to `%A, %B %d`; set
+`SLATE_DATE_FORMAT` to a Python `strftime` format string to change it. The
+weekday and month names use the server process locale. Set `TZ` to an IANA
+timezone to control which local date is displayed. The calendar block can be
+removed from the layout or positioned and sized independently of the formatted
+date text.
+
 To add another data source, create a provider with the same `get_data()`
 interface, then wire it into the server in `app.py` in place of
 `SampleProvider`. Keep each integration independent of rendering and keep its
@@ -91,7 +100,8 @@ Editing provider code requires restarting the server; editing only
 
 Provider-specific setup and behavior is documented in the
 [provider guides](../docs/providers/README.md). The sample provider is the
-default. To display a Google Calendar, follow the
+default. The current date provider is always added to provider data. To display
+a Google Calendar, follow the
 [iCal feed guide](../docs/providers/google-calendar-ical.md).
 
 ## Frame refresh and conditional requests
@@ -127,9 +137,9 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
 Open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT`,
-`SLATE_REFRESH_SECONDS`, `SLATE_DEVICE_TOKEN`, and `SLATE_REQUIRE_HTTPS` from
-`.env`. The sample sets HTTPS enforcement off for a private local demo; keep
-it on in production. It mounts
+`SLATE_REFRESH_SECONDS`, `SLATE_DATE_FORMAT`, `TZ`, `SLATE_DEVICE_TOKEN`, and
+`SLATE_REQUIRE_HTTPS` from `.env`. The sample sets HTTPS enforcement off for a
+private local demo; keep it on in production. It mounts
 `server/` read-only so layout edits stay on the host; the container can read
 but cannot change the layout. Mounting the whole directory also keeps atomic
 file saves visible inside the container, unlike mounting only `layout.json`.

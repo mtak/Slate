@@ -1,5 +1,6 @@
 import threading
 import unittest
+from datetime import datetime, timezone
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -13,7 +14,7 @@ from frame import (
     sample_frame,
     validate_frame,
 )
-from providers import SampleProvider
+from providers import CurrentDateProvider, SampleProvider
 from renderer import Renderer
 
 DEVICE_TOKEN = "test-only-device-token"
@@ -134,6 +135,17 @@ class FrameContractTests(unittest.TestCase):
 
 
 class RendererTests(unittest.TestCase):
+    def test_current_date_provider_formats_named_weekday_and_month(self):
+        current = datetime(2024, 2, 3, tzinfo=timezone.utc)
+        provider = CurrentDateProvider("%A %d %B", now=lambda: current)
+
+        self.assertEqual(provider.get_data(), {
+            "date": "Saturday 03 February",
+            "weekday": "Saturday",
+            "day": "3",
+            "month": "February",
+        })
+
     def test_default_layout_renders_sample_values_to_frame_contract(self):
         renderer = Renderer.from_file()
         frame = renderer.render(SampleProvider().get_data())
@@ -150,6 +162,20 @@ class RendererTests(unittest.TestCase):
         }
         frame = Renderer(layout).render({"message": "A sample"})
         self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(90, 120) for x in range(80, 200)))
+
+    def test_calendar_block_renders_provider_date_parts(self):
+        layout = {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "blocks": [{"type": "calendar", "x": 20, "y": 20, "width": 120, "height": 144}],
+        }
+        data = {"weekday": "Saturday", "day": "17", "month": "October"}
+
+        frame = Renderer(layout).render(data)
+
+        self.assertTrue(
+            any(pixel_is_black(frame, x, y) for y in range(55, 120) for x in range(25, 135))
+        )
 
     def test_invalid_layout_dimensions_and_missing_data_are_rejected(self):
         with self.assertRaises(ValueError):

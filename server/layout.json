@@ -4,7 +4,8 @@
   "blocks": [
     {"type": "rectangle", "x": 24, "y": 24, "width": 752, "height": 432, "stroke": 3},
     {"type": "text", "key": "greeting", "x": 48, "y": 48, "size": 42},
-    {"type": "line", "x": 48, "y": 112, "x2": 752, "y2": 112, "width": 3},
+    {"type": "calendar", "x": 632, "y": 40, "width": 120, "height": 144, "weekday_size": 16, "day_size": 48, "month_size": 20},
+    {"type": "line", "x": 48, "y": 112, "x2": 600, "y2": 112, "width": 3},
     {"type": "text", "key": "date", "x": 48, "y": 144, "size": 28},
     {"type": "text", "key": "headline", "x": 48, "y": 232, "size": 36},
     {"type": "text", "key": "message", "x": 48, "y": 296, "size": 28},

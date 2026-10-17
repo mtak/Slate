@@ -7,6 +7,7 @@ when that URL is configured.
 | Provider | Setup guide | Credentials |
 | --- | --- | --- |
 | Sample data | [Sample provider](sample.md) | None |
+| Current date | [Current date provider](current-date.md) | None |
 | Google Calendar iCal feed | [Google Calendar iCal feed](google-calendar-ical.md) | Secret HTTPS feed URL in local `.env` |
 
 Every provider returns named values through `get_data()`. The renderer uses
