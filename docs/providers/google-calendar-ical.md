@@ -33,7 +33,6 @@ Copy the random value printed by `openssl` into `SLATE_DEVICE_TOKEN`. Edit
 ```dotenv
 SLATE_DEVICE_TOKEN=<generated-random-token>
 SLATE_REQUIRE_HTTPS=false
-SLATE_CALENDAR_PROVIDER=ical
 SLATE_CALENDAR_ICAL_URL=<secret-https-ical-address>
 TZ=Europe/Amsterdam
 SLATE_CALENDAR_MAX_EVENTS=6

@@ -94,16 +94,11 @@ class ICalendarProvider:
 
 
 def provider_from_environment():
-    """Build the configured provider, validating required private settings."""
-    name = os.environ.get("SLATE_CALENDAR_PROVIDER", "sample").lower()
-    if name == "sample":
+    """Use iCal when a feed URL is configured; otherwise use sample data."""
+    url = os.environ.get("SLATE_CALENDAR_ICAL_URL")
+    if not url:
         return SampleProvider()
     timezone = os.environ.get("TZ", "UTC")
     max_events = int(os.environ.get("SLATE_CALENDAR_MAX_EVENTS", "6"))
     days_ahead = int(os.environ.get("SLATE_CALENDAR_DAYS_AHEAD", "14"))
-    if name == "ical":
-        url = os.environ.get("SLATE_CALENDAR_ICAL_URL")
-        if not url:
-            raise ValueError("SLATE_CALENDAR_ICAL_URL is required when SLATE_CALENDAR_PROVIDER=ical")
-        return ICalendarProvider(url, timezone, max_events, days_ahead)
-    raise ValueError("SLATE_CALENDAR_PROVIDER must be sample or ical")
+    return ICalendarProvider(url, timezone, max_events, days_ahead)

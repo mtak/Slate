@@ -1,10 +1,11 @@
+import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import requests
 
-from providers import ICalendarProvider
+from providers import ICalendarProvider, SampleProvider, provider_from_environment
 
 
 class FakeResponse:
@@ -18,6 +19,22 @@ class FakeResponse:
 
 
 class ICalendarProviderTests(unittest.TestCase):
+    def test_uses_sample_provider_when_feed_url_is_not_configured(self):
+        with patch.dict(os.environ, {}, clear=True):
+            provider = provider_from_environment()
+
+        self.assertIsInstance(provider, SampleProvider)
+
+    def test_uses_ical_provider_when_feed_url_is_configured(self):
+        with patch.dict(os.environ, {
+            "SLATE_CALENDAR_ICAL_URL": "https://calendar.example.invalid/private.ics",
+            "TZ": "UTC",
+        }, clear=True):
+            provider = provider_from_environment()
+
+        self.assertIsInstance(provider, ICalendarProvider)
+        self.assertEqual(provider.url, "https://calendar.example.invalid/private.ics")
+
     def test_reads_recurring_and_all_day_events_in_configured_window(self):
         start = datetime.now(timezone.utc) + timedelta(days=1)
         start_text = start.strftime("%Y%m%dT%H%M%SZ")
