@@ -12,6 +12,10 @@ test-basic:
 	@mkdir -p .test-build
 	$(CXX) -std=c++11 -Wall -Wextra -Werror -pedantic -Isrc src/frame.cpp tests/frame_test.cpp -o .test-build/frame_test
 	./.test-build/frame_test
+	$(CXX) -std=c++11 -Wall -Wextra -Werror -pedantic -Isrc tests/panel_partial_test.cpp -o .test-build/panel_partial_test
+	./.test-build/panel_partial_test
+	$(CXX) -std=c++11 -Wall -Wextra -Werror -pedantic -DSLATE_EPD_PROFILE_V2_OLD -Isrc tests/panel_partial_test.cpp -o .test-build/panel_partial_test_v2_old
+	./.test-build/panel_partial_test_v2_old
 
 test-memory:
 	@mkdir -p .test-build

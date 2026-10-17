@@ -3,6 +3,7 @@
 #include "refresh_policy.h"
 #include "device_hostname.h"
 #include "wifi_retry.h"
+#include "panel_window.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +114,23 @@ void testRefreshPolicyUsesConfiguredPartialCount() {
          "a configured count of zero disables partial refreshes");
 }
 
+void testPartialWindowExclusiveEndEncoding() {
+  const slate::panel::CoordinateBytes xBoundary =
+      slate::panel::encodeInclusiveEnd(256);
+  expect(xBoundary.high == 0x00 && xBoundary.low == 0xFF,
+         "X end at 256 encodes as inclusive endpoint 255");
+
+  const slate::panel::CoordinateBytes yBoundary =
+      slate::panel::encodeInclusiveEnd(256);
+  expect(yBoundary.high == 0x00 && yBoundary.low == 0xFF,
+         "Y end at 256 encodes without low-byte underflow");
+
+  const slate::panel::CoordinateBytes ordinary =
+      slate::panel::encodeInclusiveEnd(300);
+  expect(ordinary.high == 0x01 && ordinary.low == 0x2B,
+         "ordinary exclusive end 300 encodes as inclusive endpoint 299");
+}
+
 void testFrameDiffBuildsByteAlignedChangedBounds() {
   slate::FrameDiff diff;
   expect(!diff.region().changed, "unchanged frame has no changed region");
@@ -172,6 +190,7 @@ int main() {
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
   testWifiRetryBackoffIsBounded();
   testRefreshPolicyUsesConfiguredPartialCount();
+  testPartialWindowExclusiveEndEncoding();
   testFrameDiffBuildsByteAlignedChangedBounds();
   testFrameDiffComparesAndReplacesRowsInPlace();
   testDeviceHostnameUsesUppercaseMacSuffix();
