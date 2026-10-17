@@ -15,6 +15,7 @@ services:
       TZ: ${TZ:-UTC}
       SLATE_CALENDAR_MAX_EVENTS: ${SLATE_CALENDAR_MAX_EVENTS:-6}
       SLATE_CALENDAR_DAYS_AHEAD: ${SLATE_CALENDAR_DAYS_AHEAD:-14}
+      SLATE_LITERAL_TEXT_FILE: ${SLATE_LITERAL_TEXT_FILE:-}
     volumes:
       - ./server:/config:ro
     restart: unless-stopped

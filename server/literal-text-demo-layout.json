@@ -1,0 +1,10 @@
+{
+  "width": 800,
+  "height": 480,
+  "blocks": [
+    {"type": "rectangle", "x": 24, "y": 24, "width": 752, "height": 432, "stroke": 3},
+    {"type": "text", "key": "display_heading", "x": 56, "y": 72, "size": 46, "bold": true},
+    {"type": "line", "x": 56, "y": 142, "x2": 744, "y2": 142, "width": 3},
+    {"type": "wrapped_text", "key": "display_message", "x": 56, "y": 184, "size": 30, "max_width": 680, "max_lines": 4, "line_height": 42}
+  ]
+}

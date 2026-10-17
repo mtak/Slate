@@ -1,7 +1,9 @@
 """Small interfaces and integrations for server-side data sources."""
 
+import json
 import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Callable, Protocol
 from zoneinfo import ZoneInfo
 
@@ -50,6 +52,34 @@ class CurrentDateProvider:
             "day": current.strftime("%d").lstrip("0") or "0",
             "month": current.strftime("%B"),
         }
+
+
+class LiteralTextProvider:
+    """Load user-authored string values from a local JSON configuration file."""
+
+    def __init__(self, path: str | Path):
+        self.path = Path(path)
+
+    def get_data(self) -> dict[str, str]:
+        try:
+            with self.path.open(encoding="utf-8") as config_file:
+                values = json.load(config_file)
+        except FileNotFoundError:
+            raise ValueError(f"literal text configuration file does not exist: {self.path}") from None
+        except (OSError, UnicodeError) as error:
+            raise ValueError(f"cannot read literal text configuration file {self.path}: {error}") from None
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                f"literal text configuration file {self.path} is not valid JSON: {error.msg} at line {error.lineno}"
+            ) from None
+
+        if not isinstance(values, dict):
+            raise ValueError(f"literal text configuration file {self.path} must contain a JSON object")
+        if any(not isinstance(key, str) or not key.strip() for key in values):
+            raise ValueError(f"literal text configuration file {self.path} must use non-empty keys")
+        if any(not isinstance(value, str) for value in values.values()):
+            raise ValueError(f"literal text configuration file {self.path} must contain only string values")
+        return values
 
 
 class DailyAffirmationProvider:
@@ -155,3 +185,9 @@ def provider_from_environment():
     max_events = int(os.environ.get("SLATE_CALENDAR_MAX_EVENTS", "6"))
     days_ahead = int(os.environ.get("SLATE_CALENDAR_DAYS_AHEAD", "14"))
     return ICalendarProvider(url, timezone, max_events, days_ahead)
+
+
+def literal_text_provider_from_environment():
+    """Enable literal text only when its local config path is explicitly set."""
+    path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
+    return LiteralTextProvider(path) if path else None
