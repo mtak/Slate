@@ -87,33 +87,12 @@ credentials in local or deployment configuration, never in source control.
 Editing provider code requires restarting the server; editing only
 `layout.json` does not.
 
-## Google Calendar iCal feed
+## Provider guides
 
-For the simplest setup, use Google's secret iCal address as a private feed
-URL. Anyone who obtains that URL can read the calendar, so do not send it in
-chat, add it to source control, or include it in screenshots or logs. You can
-revoke it by resetting the secret address in Google Calendar. Keep it in the
-ignored local `.env` file instead:
-
-```dotenv
-SLATE_PROVIDER=ical
-SLATE_ICAL_URL=https://calendar.google.com/calendar/ical/REDACTED/private-REDACTED/basic.ics
-SLATE_TIMEZONE=Europe/Amsterdam
-SLATE_CALENDAR_MAX_EVENTS=6
-SLATE_CALENDAR_DAYS_AHEAD=14
-```
-
-Use the address shown under **Settings → Integrate calendar → Secret address
-in iCal format**. The feed is fetched over HTTPS with redirects disabled, and
-its URL is never written to server logs. The provider expands recurring events
-and converts event times to the configured IANA timezone. `.env` is ignored by
-Git; never insert the real URL into `.env.example` or share it in support logs.
-
-Use an IANA timezone name such as `Europe/Amsterdam`; it controls displayed
-event times and the 14-day query window. All-day events display as “All day”.
-The sample provider remains the default and supplies three fictional events for
-previewing the layout without credentials. Feed failures are reported as a
-failed frame render without logging the private URL.
+Provider-specific setup and behavior is documented in the
+[provider guides](../docs/providers/README.md). The sample provider is the
+default. To display a Google Calendar, follow the
+[iCal feed guide](../docs/providers/google-calendar-ical.md).
 
 ## Frame refresh and conditional requests
 
