@@ -7,7 +7,7 @@ Data providers (calendar, home automation, later sources)
         Python renderer + layout config
                   │  current monochrome frame
                   ▼
-       HTTPS image endpoint / browser preview
+       HTTP frame endpoint / browser preview
                   ▲
                   │ conditional poll (ETag)
                   │
@@ -50,12 +50,18 @@ one bit is white. Each row is exactly 100 bytes, so there is no row padding.
 These are the same byte and pixel conventions used by the firmware frame
 buffer and Waveshare display driver.
 
-The development server exposes `/preview`, which draws the bytes from the v1
-endpoint into an 800×480 browser canvas using the same origin, row, bit, and
-polarity rules. The built-in sample frame marks all four corners and draws an
-asymmetric upper-left L to make orientation errors visible. Issue #7 will add
-an ETag derived from the exact frame bytes; an unchanged conditional request
-will return `304 Not Modified` without sending the frame again.
+The server exposes `/preview`, which draws the bytes from the v1 endpoint into
+an 800×480 browser canvas using the same origin, row, bit, and polarity rules.
+The built-in sample frame marks all four corners and draws an asymmetric
+upper-left L to make orientation errors visible.
+
+Each `GET /api/frame/v1` response includes a strong ETag: the quoted
+hexadecimal SHA-256 digest of the exact 48,000 frame bytes. A client saves the
+ETag from its response and sends it on its next request as `If-None-Match`. If
+the current frame still has that ETag, the server responds with
+`304 Not Modified` and an empty body. If the frame has changed, the server
+returns `200 OK`, the new ETag, and the complete frame. The firmware can then
+skip transferring and drawing an unchanged frame.
 
 ## Security
 
@@ -68,17 +74,25 @@ rotation and multiple devices can be added if needed.
 
 ## Refresh behavior
 
-Poll at a configurable interval, initially around 60 seconds. The server's
-render cadence and the firmware polling cadence are separate settings. Avoid
-refreshing the panel when the frame hash is unchanged, and enforce the panel's
-minimum refresh interval even if the server output changes frequently. On boot,
-fetch and display the current frame. On network failure, keep the existing
-image and retry with a bounded backoff.
+The Compose deployment sets the server render cadence with
+`SLATE_REFRESH_SECONDS` (default 60 seconds). The service renders on first
+request, then keeps those bytes and their ETag until the interval expires. On
+the next frame request after expiry, it renders again and derives a new ETag.
+The firmware's polling cadence is a separate setting: it can poll more often
+than the server renders, using `If-None-Match` to avoid receiving duplicate
+bytes. Keep panel updates at or above the panel's minimum refresh interval even
+if the server output changes frequently. On boot, fetch and display the current
+frame. On network failure, keep the existing image and retry with a bounded
+backoff.
 
 ## Deployment
 
-Docker Compose runs the renderer/API as one service initially. Persist editable
-layout/configuration separately from the container image. Expose the browser
-preview and authenticated device endpoint on the trusted home network; TLS
-termination may be provided by an existing reverse proxy, provided the ESP32
-connects to the authenticated HTTPS endpoint and validates its certificate.
+Docker Compose runs the renderer/API as one service initially. It bind-mounts
+`server/layout.json` from the host, so edits persist outside the image; the
+service reads the layout when it starts. `.env` can set `SLATE_PORT` and
+`SLATE_REFRESH_SECONDS` and is kept local. Expose the browser preview and
+authenticated device endpoint on the trusted home network; TLS termination may
+be provided by an existing reverse proxy, provided the ESP32 connects to the
+authenticated HTTPS endpoint and validates its certificate. The built-in
+server itself uses plain HTTP, suitable for local development behind a trusted
+network or a TLS-terminating proxy.
