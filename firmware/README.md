@@ -5,6 +5,10 @@ framework through PlatformIO. The PlatformIO CLI is pinned in
 `requirements.txt`; the Espressif32 platform (including its framework and
 compiler toolchain) is pinned in `platformio.ini`.
 
+For the clean-checkout setup through physical display verification, follow the
+[setup and commissioning guide](../docs/getting-started.md). This page keeps the
+firmware-specific commands and configuration details.
+
 ## Setup
 
 From this directory, run:
@@ -59,13 +63,10 @@ pinned PlatformIO CLI. The first build downloads the pinned ESP32 platform and
 toolchain into `.platformio/`; build outputs go into `.pio/`. Both directories
 are ignored by Git.
 
-The current sketch runs a one-shot display-profile diagnostic at boot. The
-default `slate_esp32` environment uses Waveshare's `7.5V2` profile; the
-`slate_esp32_v2_old` environment uses `7.5V2_old`. Both draw a labeled
-800×480 test pattern and time out rather than waiting forever for the panel's
-busy signal.
-
-Build and flash each candidate separately:
+The firmware displays the authenticated frame from the configured server. The
+default `slate_esp32` environment uses Waveshare's `7.5V2` profile. The
+`slate_esp32_v2_old` environment selects `7.5V2_old`, a tested alternative for
+the documented panel. To build and flash the alternate profile:
 
 ```sh
 make build
@@ -75,11 +76,9 @@ make monitor PORT=/dev/ttyUSB0
 ./.venv/bin/pio run -e slate_esp32_v2_old --target upload --upload-port /dev/ttyUSB0
 ```
 
-The e-paper performs a full refresh for each diagnostic. Record the profile,
-firmware revision, orientation, edge clipping, visible pattern/text, and whether
-the serial monitor reports a busy timeout. Do not infer a successful profile
-from compilation alone; the physical result decides which profile is selected.
-Panel profile selection is tracked in [hardware notes](../docs/hardware.md).
+Each profile has its own panel initialization and partial-refresh sequence.
+Panel profile selection and hardware validation are recorded in the
+[hardware notes](../docs/hardware.md).
 
 The device requests the authenticated v1 frame immediately at startup and then
 polls at `SLATE_POLL_INTERVAL_SECONDS` (default 60). Set
@@ -103,3 +102,6 @@ the attached panel. A physical HTTPS test requires Wi-Fi, a reachable HTTPS
 endpoint, and a valid root CA in the ignored config file.
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.
+
+For network, certificate, frame, and display symptoms, see the
+[troubleshooting guide](../docs/troubleshooting.md).
