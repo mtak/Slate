@@ -24,7 +24,10 @@ their example programs can differ. If a label is hidden by the mounted HAT,
 inspect the exposed back/edge only if it can be done without stressing the
 panel's fragile flex cable. There is no need to dismantle the assembly just to
 read a revision label: a diagnostic firmware test can validate a suitable
-800×480 profile against the working hardware.
+800×480 profile against the working hardware. The panel is currently enclosed
+in a case, and the case will not be removed to expose hidden markings. No
+reliable non-destructive evidence currently identifies the exact panel revision
+or its sale date, so leave both unknown.
 
 The 0.47R resistor and 4-line SPI selections are already known and validated,
 so they are not unresolved wiring questions.
@@ -78,3 +81,26 @@ The profile sources are pinned and attributed in
 [`firmware/vendor/waveshare/README.md`](../firmware/vendor/waveshare/README.md).
 Both profiles are confirmed compatible with the panel. Keep `7.5V2` as the
 default and retain `7.5V2_old` as a validated alternative.
+
+### Partial-refresh comparison (2026-10-17)
+
+A controlled comparison used four high-contrast frames, with two partial
+updates between full updates. Serial output confirmed that partial updates ran,
+but the user observed no visible difference in flashing between partial and
+full updates. On this panel, partial refresh therefore has no demonstrated
+visible flashing benefit; keep the cadence configurable and do not claim it
+reduces flashing. This observation does not identify the panel revision. No
+additional markings were available without opening the case, which the user
+does not want to do.
+
+This result differs from Waveshare's [7.5-inch HAT manual](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual),
+which says a full refresh flashes several times to clear afterimages and a
+partial refresh has no flickering effect. The manual lists approximate refresh
+times of 4 seconds full and 0.4 seconds partial, with actual results varying.
+The firmware test did invoke the partial initialization and update routines,
+but used a partial window covering the entire 800×480 panel. A useful follow-up
+is to establish a stable full-screen image, then change only a small region in
+partial mode and observe whether the rest of the image stays still and whether
+the changed region avoids the global flash. Follow with a full refresh to clear
+ghosting, as Waveshare recommends after several partial updates. The physical
+test remains outstanding because the device is not connected to this session.
