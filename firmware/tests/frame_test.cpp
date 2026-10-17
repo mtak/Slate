@@ -1,6 +1,7 @@
 #include "frame.h"
 #include "frame_diff.h"
 #include "refresh_policy.h"
+#include "device_hostname.h"
 #include "wifi_retry.h"
 
 #include <stdio.h>
@@ -148,6 +149,21 @@ void testFrameDiffComparesAndReplacesRowsInPlace() {
   expect(frame[16 * slate::kBytesPerRow + 7] == 0x0F,
          "later incoming row also replaces its old bytes");
 }
+
+void testDeviceHostnameUsesUppercaseMacSuffix() {
+  char hostname[slate::kDeviceHostnameSize];
+  expect(slate::makeDeviceHostname("AA:BB:CC:69:08:f8", hostname,
+                                  sizeof(hostname)),
+         "valid station MAC produces a hostname");
+  expect(strcmp(hostname, "Slate-6908F8") == 0,
+         "hostname uses the final six MAC digits in uppercase");
+  expect(strlen(hostname) == 12 && strlen(hostname) <= 63,
+         "hostname stays within the DNS hostname length limit");
+  expect(!slate::makeDeviceHostname("not-a-mac", hostname, sizeof(hostname)),
+         "invalid MAC does not produce a hostname");
+  expect(!slate::makeDeviceHostname("AA:BB:CC:69:08:F8", hostname, 12),
+         "hostname formatting checks output capacity");
+}
 }  // namespace
 
 int main() {
@@ -158,6 +174,7 @@ int main() {
   testRefreshPolicyUsesConfiguredPartialCount();
   testFrameDiffBuildsByteAlignedChangedBounds();
   testFrameDiffComparesAndReplacesRowsInPlace();
+  testDeviceHostnameUsesUppercaseMacSuffix();
   puts("Firmware tests passed");
   return 0;
 }

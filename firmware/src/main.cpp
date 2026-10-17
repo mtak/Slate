@@ -10,6 +10,7 @@
 #include "frame.h"
 #include "frame_diff.h"
 #include "refresh_policy.h"
+#include "device_hostname.h"
 #include "wifi_retry.h"
 #include "../vendor/waveshare/Config/DEV_Config.h"
 
@@ -204,6 +205,18 @@ void connectToWifi() {
   }
 
   WiFi.mode(WIFI_STA);
+  char hostname[slate::kDeviceHostnameSize];
+  const String macAddress = WiFi.macAddress();
+  if (slate::makeDeviceHostname(macAddress.c_str(), hostname,
+                                sizeof(hostname))) {
+    if (WiFi.setHostname(hostname)) {
+      Serial.printf("Wi-Fi hostname: %s\n", hostname);
+    } else {
+      Serial.println("Could not set Wi-Fi hostname");
+    }
+  } else {
+    Serial.println("Could not create Wi-Fi hostname from station MAC");
+  }
   uint32_t retryDelayMs = kReconnectInitialDelayMs;
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Connecting to Wi-Fi");
