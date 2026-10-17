@@ -1,7 +1,9 @@
 """Small interfaces and integrations for server-side data sources."""
 
+import json
 import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Callable, Protocol
 from zoneinfo import ZoneInfo
 
@@ -50,6 +52,49 @@ class CurrentDateProvider:
             "day": current.strftime("%d").lstrip("0") or "0",
             "month": current.strftime("%B"),
         }
+
+
+class LiteralTextProvider:
+    """Provide one user-authored string under the layout key assigned to it."""
+
+    def __init__(self, key: str, text: str):
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("literal text provider key must be a non-empty string")
+        if not isinstance(text, str):
+            raise ValueError("literal text provider content must be a string")
+        self.key = key
+        self.text = text
+
+    def get_data(self) -> dict[str, str]:
+        return {self.key: self.text}
+
+
+def literal_text_providers_from_environment() -> list[LiteralTextProvider]:
+    """Create one provider instance per named text in the configured JSON file."""
+    path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
+    if not path:
+        return []
+
+    config_path = Path(path)
+    try:
+        with config_path.open(encoding="utf-8") as config_file:
+            values = json.load(config_file)
+    except FileNotFoundError:
+        raise ValueError(f"literal text configuration file does not exist: {config_path}") from None
+    except (OSError, UnicodeError) as error:
+        raise ValueError(f"cannot read literal text configuration file {config_path}: {error}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"literal text configuration file {config_path} is not valid JSON: {error.msg} at line {error.lineno}"
+        ) from None
+
+    if not isinstance(values, dict):
+        raise ValueError(f"literal text configuration file {config_path} must contain a JSON object")
+    if any(not isinstance(key, str) or not key.strip() for key in values):
+        raise ValueError(f"literal text configuration file {config_path} must use non-empty keys")
+    if any(not isinstance(value, str) for value in values.values()):
+        raise ValueError(f"literal text configuration file {config_path} must contain only string values")
+    return [LiteralTextProvider(key, text) for key, text in values.items()]
 
 
 class DailyAffirmationProvider:

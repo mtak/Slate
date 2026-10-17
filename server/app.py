@@ -9,7 +9,13 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
-from providers import CurrentDateProvider, DailyAffirmationProvider, DEFAULT_DATE_FORMAT, provider_from_environment
+from providers import (
+    CurrentDateProvider,
+    DailyAffirmationProvider,
+    DEFAULT_DATE_FORMAT,
+    literal_text_providers_from_environment,
+    provider_from_environment,
+)
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
@@ -87,10 +93,20 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
     if frame_provider is None:
         layout_path = os.environ.get("SLATE_LAYOUT_PATH", str(DEFAULT_LAYOUT_PATH))
         layout_file = os.path.abspath(layout_path)
+        literal_text_path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
 
         def layout_file_signature():
             stat = os.stat(layout_file)
-            return stat.st_mtime_ns, stat.st_size
+            literal_signature = None
+            if literal_text_path:
+                try:
+                    literal_stat = os.stat(literal_text_path)
+                    literal_signature = (
+                        literal_stat.st_mtime_ns, literal_stat.st_ctime_ns, literal_stat.st_size
+                    )
+                except OSError as error:
+                    literal_signature = ("unavailable", type(error).__name__)
+            return (stat.st_mtime_ns, stat.st_size), literal_signature
 
         provider = provider_from_environment()
         date_provider = CurrentDateProvider(os.environ.get("SLATE_DATE_FORMAT", DEFAULT_DATE_FORMAT))
@@ -100,6 +116,13 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
             data = provider.get_data()
             data.update(date_provider.get_data())
             data.update(affirmation_provider.get_data())
+            for literal_text_provider in literal_text_providers_from_environment():
+                literal_text = literal_text_provider.get_data()
+                conflicts = data.keys() & literal_text.keys()
+                if conflicts:
+                    keys = ", ".join(sorted(conflicts))
+                    raise ValueError(f"literal text keys conflict with built-in provider values: {keys}")
+                data.update(literal_text)
             return Renderer.from_file(layout_file).render(data)
 
         frame_provider = render_frame
@@ -181,6 +204,7 @@ if __name__ == "__main__":
         raise SystemExit("SLATE_REQUIRE_HTTPS must be true or false")
     require_https = require_https_value in ("true", "1")
     server = create_server(host=os.environ.get("SLATE_HOST", "0.0.0.0"),
+                           port=int(os.environ.get("SLATE_PORT", "8000")),
                            refresh_seconds=refresh_seconds, device_token=token,
                            require_https=require_https)
     address = server.server_address
