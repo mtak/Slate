@@ -7,6 +7,8 @@
 #define SLATE_WIFI_PASSWORD "replace-with-local-network-password"
 #define SLATE_SERVER_BASE_URL "https://display.example.invalid"
 #define SLATE_DEVICE_TOKEN "replace-with-a-random-local-device-token"
+#define SLATE_POLL_INTERVAL_SECONDS 60
+#define SLATE_MIN_REFRESH_INTERVAL_SECONDS 60
 #define SLATE_TLS_VERIFY true
 // Paste the PEM CA certificate that issued the server certificate.
 // For a public CA, use its root CA. For a private CA, use your own root.

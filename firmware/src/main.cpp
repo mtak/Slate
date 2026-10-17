@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <esp_task_wdt.h>
+#include <string.h>
 
 #include "frame.h"
 #include "wifi_retry.h"
@@ -26,10 +27,27 @@ constexpr bool kOldProfile = true;
 constexpr bool kOldProfile = false;
 #endif
 uint8_t frame[slate::kFrameSize];
+uint8_t downloadedFrame[slate::kFrameSize];
+bool haveDisplayedFrame = false;
+bool havePendingFrame = false;
+bool havePanelRefreshAttempt = false;
+String lastEtag;
+uint32_t lastPanelRefreshAt = 0;
 constexpr uint32_t kWatchdogTimeoutSeconds = 60;
 constexpr uint32_t kReconnectInitialDelayMs = 1000;
 constexpr uint32_t kReconnectMaxDelayMs = 30000;
 constexpr uint32_t kWatchdogFeedIntervalMs = 1000;
+#if defined(SLATE_POLL_INTERVAL_SECONDS) && SLATE_POLL_INTERVAL_SECONDS > 0
+constexpr uint32_t kPollIntervalMs = SLATE_POLL_INTERVAL_SECONDS * 1000UL;
+#else
+constexpr uint32_t kPollIntervalMs = 60000;
+#endif
+#if defined(SLATE_MIN_REFRESH_INTERVAL_SECONDS) && SLATE_MIN_REFRESH_INTERVAL_SECONDS > 0
+constexpr uint32_t kMinimumRefreshIntervalMs = SLATE_MIN_REFRESH_INTERVAL_SECONDS * 1000UL;
+#else
+constexpr uint32_t kMinimumRefreshIntervalMs = 60000;
+#endif
+uint32_t nextPollAt = 0;
 #if defined(SLATE_WIFI_SSID) && defined(SLATE_WIFI_PASSWORD)
 constexpr bool kWifiConfigured = true;
 #else
@@ -59,16 +77,38 @@ bool fetchFrame() {
     return false;
   }
   request.addHeader("Authorization", String("Bearer ") + SLATE_DEVICE_TOKEN);
+  const char *headerKeys[] = {"ETag", "Content-Type", "X-Slate-Format-Version",
+                              "X-Slate-Width", "X-Slate-Height"};
+  request.collectHeaders(headerKeys, sizeof(headerKeys) / sizeof(headerKeys[0]));
+  if (lastEtag.length() > 0) request.addHeader("If-None-Match", lastEtag);
+  request.setTimeout(10000);
   const int status = request.GET();
   bool ok = false;
-  if (status == HTTP_CODE_OK && request.getSize() == slate::kFrameSize) {
+  if (status == HTTP_CODE_NOT_MODIFIED) {
+    Serial.println("Frame unchanged (ETag)");
+    request.end();
+    return false;
+  }
+  const bool validMetadata = request.header("Content-Type") == "application/vnd.slate.frame" &&
+      request.header("X-Slate-Format-Version") == "1" &&
+      request.header("X-Slate-Width") == "800" &&
+      request.header("X-Slate-Height") == "480";
+  if (status == HTTP_CODE_OK && validMetadata && request.getSize() == slate::kFrameSize) {
     WiFiClient *stream = request.getStreamPtr();
-    const size_t count = stream->readBytes(frame, slate::kFrameSize);
+    const size_t count = stream->readBytes(downloadedFrame, slate::kFrameSize);
     ok = count == slate::kFrameSize;
+    if (ok) {
+      const String responseEtag = request.header("ETag");
+      if (responseEtag.length() == 0) {
+        ok = false;
+      } else {
+        lastEtag = responseEtag;
+      }
+    }
   }
   request.end();
-  if (ok) Serial.println("Frame downloaded over HTTPS");
-  else Serial.printf("Frame request failed (HTTP %d or invalid frame size)\n", status);
+  if (ok) Serial.println("Validated frame downloaded over HTTPS");
+  else Serial.printf("Frame request rejected (HTTP %d or invalid frame contract)\n", status);
   return ok;
 #endif
 }
@@ -120,18 +160,6 @@ void maintainWifi() {
   connectToWifi();
 }
 
-void showDiagnosticFrame() {
-  slate::drawDiagnosticFrame(frame, kOldProfile);
-
-#if defined(SLATE_EPD_PROFILE_V2_OLD)
-  Serial.println("Testing Waveshare 7.5V2_old profile");
-  EPD_7IN5_V2_Display_old(frame);
-#else
-  Serial.println("Testing Waveshare 7.5V2 profile");
-  EPD_7IN5_V2_Display(frame);
-#endif
-}
-
 bool initializePanel() {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
   Serial.println("Initializing Waveshare 7.5V2_old profile");
@@ -151,6 +179,57 @@ void sleepPanel() {
   EPD_7IN5_V2_Sleep();
 #endif
 }
+
+void pollForFrame() {
+  const uint32_t now = millis();
+  if (static_cast<int32_t>(now - nextPollAt) >= 0) {
+    nextPollAt = now + kPollIntervalMs;
+    if (WiFi.status() == WL_CONNECTED && fetchFrame()) {
+      if (!haveDisplayedFrame || memcmp(frame, downloadedFrame, slate::kFrameSize) != 0) {
+        memcpy(frame, downloadedFrame, slate::kFrameSize);
+        havePendingFrame = true;
+      } else {
+        havePendingFrame = false;
+        Serial.println("Frame payload unchanged");
+      }
+    }
+  }
+  if (!havePendingFrame) return;
+  if (havePanelRefreshAttempt && now - lastPanelRefreshAt < kMinimumRefreshIntervalMs) {
+    Serial.println("Frame changed; waiting for minimum panel refresh interval");
+    return;
+  }
+  DEV_Module_Init();
+  if (!initializePanel()) {
+    Serial.println("Panel initialization failed or timed out; keeping current display");
+    DEV_Module_Exit();
+    return;
+  }
+#if defined(SLATE_EPD_PROFILE_V2_OLD)
+  lastPanelRefreshAt = millis();
+  havePanelRefreshAttempt = true;
+  EPD_7IN5_V2_Display_old(frame);
+#else
+  lastPanelRefreshAt = millis();
+  havePanelRefreshAttempt = true;
+  EPD_7IN5_V2_Display(frame);
+#endif
+  if (slateEpdBusyTimeout) {
+    Serial.println("Panel refresh timed out; keeping current display");
+    DEV_Module_Exit();
+    return;
+  }
+  sleepPanel();
+  if (slateEpdBusyTimeout) {
+    Serial.println("Panel sleep wait timed out");
+    DEV_Module_Exit();
+    return;
+  }
+  haveDisplayedFrame = true;
+  havePendingFrame = false;
+  Serial.println("Updated panel with fetched frame");
+  DEV_Module_Exit();
+}
 }  // namespace
 
 void setup() {
@@ -161,45 +240,15 @@ void setup() {
     Serial.println("Could not initialize task watchdog");
     ESP.restart();
   }
-  Serial.println("Slate e-paper driver-profile diagnostic");
+  Serial.println("Slate frame client");
 
   connectToWifi();
-  feedWatchdog();
-  const bool haveFrame = WiFi.status() == WL_CONNECTED && fetchFrame();
-
-  DEV_Module_Init();
-  if (!initializePanel()) {
-    Serial.println("Panel initialization failed or timed out");
-    DEV_Module_Exit();
-    return;
-  }
-
-  if (haveFrame) {
-#if defined(SLATE_EPD_PROFILE_V2_OLD)
-    EPD_7IN5_V2_Display_old(frame);
-#else
-    EPD_7IN5_V2_Display(frame);
-#endif
-  } else {
-    showDiagnosticFrame();
-  }
-  if (slateEpdBusyTimeout) {
-    Serial.println("Panel refresh timed out");
-    DEV_Module_Exit();
-    return;
-  }
-
-  sleepPanel();
-  if (slateEpdBusyTimeout) {
-    Serial.println("Panel sleep wait timed out");
-  } else {
-    Serial.println("Diagnostic update complete");
-  }
-  DEV_Module_Exit();
+  pollForFrame();
 }
 
 void loop() {
   maintainWifi();
+  pollForFrame();
   feedWatchdog();
   delay(kWatchdogFeedIntervalMs);
 }

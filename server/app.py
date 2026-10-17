@@ -129,6 +129,9 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                         self.send_response(304)
                         self.send_header("ETag", etag)
                         self.send_header("Cache-Control", "no-cache")
+                        self.send_header("X-Slate-Format-Version", "1")
+                        self.send_header("X-Slate-Width", "800")
+                        self.send_header("X-Slate-Height", "480")
                         self.end_headers()
                         return
                 self.send_response(200)
@@ -136,6 +139,9 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                 self.send_header("Content-Length", str(FRAME_SIZE))
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("ETag", etag)
+                self.send_header("X-Slate-Format-Version", "1")
+                self.send_header("X-Slate-Width", "800")
+                self.send_header("X-Slate-Height", "480")
                 self.end_headers()
                 self.wfile.write(frame)
                 return

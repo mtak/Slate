@@ -81,9 +81,15 @@ the serial monitor reports a busy timeout. Do not infer a successful profile
 from compilation alone; the physical result decides which profile is selected.
 Panel profile selection is tracked in [hardware notes](../docs/hardware.md).
 
-At startup the firmware fetches the authenticated frame over HTTPS and displays
-it when the response is exactly 48,000 bytes. If the request fails, it shows
-the local diagnostic pattern instead. A physical HTTPS test requires Wi-Fi, a
+The device requests the authenticated v1 frame immediately at startup and then
+polls at `SLATE_POLL_INTERVAL_SECONDS` (default 60). Set
+`SLATE_MIN_REFRESH_INTERVAL_SECONDS` (default 60) to limit full panel refreshes.
+The client validates the media type, v1 format version, 800×480 dimensions, and
+48,000-byte payload before it can replace the displayed frame. It sends the
+server ETag on later polls, skips 304 responses and identical payloads, and
+keeps a validated pending frame until the refresh interval permits an update.
+Transient connection or response failures leave the current panel image alone;
+the next poll retries the request. A physical HTTPS test requires Wi-Fi, a
 reachable HTTPS endpoint, and a valid root CA in the ignored config file.
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.
