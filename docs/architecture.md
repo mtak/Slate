@@ -22,14 +22,14 @@ must not know about the display hardware. Layout/rendering code should accept
 provider data and produce an 800×480, 1-bit image.
 
 The renderer's provider interface is `get_data()`, returning named values for
-layout blocks. The current date provider supplies a configurable formatted
-date plus weekday, day, and month values for the calendar block. The JSON
-layout defines block type, position, and style. Pillow converts the result to
-the v1 raw frame bytes.
+layout blocks. `CurrentDateProvider` supplies a configurable formatted date
+and weekday, day, and month values. The JSON layout defines block type,
+position, and style; the renderer supports text, lines, outlined rectangles,
+calendar icons, and event lists. Pillow converts the result to the v1 raw frame
+bytes.
 
 The ESP32 owns Wi-Fi connectivity, authenticated image retrieval, change
-detection, and panel driving. It should hold no calendar or home automation
-credentials. A hardware watchdog should recover from a stalled firmware task.
+detection, and panel driving. It holds no provider credentials.
 
 ## Public repository hygiene
 
@@ -72,6 +72,11 @@ the device with a randomly generated token sent in an authorization header, not
 in a URL. Keep the token in deployment configuration, out of source control,
 and avoid logging it. One device token is sufficient for the initial deployment;
 rotation and multiple devices can be added if needed.
+The server requires a Bearer token and supports `SLATE_REQUIRE_HTTPS` to reject
+device requests that do not arrive with `X-Forwarded-Proto: https` from a
+trusted TLS proxy. Deployment-specific proxy and network configuration belongs
+in the deployment environment's private documentation. Keep the application
+port reachable only from the trusted proxy when using forwarded scheme data.
 
 ## Refresh behavior
 
@@ -82,6 +87,18 @@ the next frame request after expiry, it renders again and derives a new ETag.
 An edit to the mounted layout file invalidates the cached frame immediately,
 so the next frame request renders the edited layout without restarting the
 container.
+
+When the firmware has a complete displayed frame and its framebuffer is known
+to match the panel, it compares a newly downloaded full frame with that buffer
+as each row arrives. It overwrites the old bytes in place and records the
+smallest changed rectangle, rounded horizontally to whole bytes (eight
+pixels). The partial panel transfer reads that rectangle using the full frame's
+100-byte row stride. This keeps the HTTP frame contract unchanged and requires
+only the existing 48,000-byte framebuffer plus one 100-byte scanline scratch
+buffer. The first update, and any update after an interrupted transfer or
+uncertain panel operation, uses a full refresh. Successful partial refreshes
+follow the configured cadence, with a full refresh after two partial updates
+by default.
 The firmware's polling cadence is a separate setting: it can poll more often
 than the server renders, using `If-None-Match` to avoid receiving duplicate
 bytes. Keep panel updates at or above the panel's minimum refresh interval even
@@ -89,16 +106,12 @@ if the server output changes frequently. On boot, fetch and display the current
 frame. On network failure, keep the existing image and retry with a bounded
 backoff.
 
-## Deployment
+## Deployment boundary
 
-Docker Compose runs the renderer/API as one service initially. It bind-mounts
-the host's `server/` directory read-only, so layout edits persist outside the
-image and atomic file saves are visible inside the container. The service
-detects layout edits on frame requests. `/preview` polls every five seconds and
-redraws when the ETag changes. `.env` can set `SLATE_PORT` and
-`SLATE_REFRESH_SECONDS` and is kept local. Expose the browser preview and
-authenticated device endpoint on the trusted home network; TLS termination may
-be provided by an existing reverse proxy, provided the ESP32 connects to the
-authenticated HTTPS endpoint and validates its certificate. The built-in
-server itself uses plain HTTP, suitable for local development behind a trusted
-network or a TLS-terminating proxy.
+The server application listens on HTTP. A deployment that serves a physical
+device must provide HTTPS on the device-facing endpoint, configure the server
+to require HTTPS when appropriate, and ensure the ESP32 validates the endpoint
+certificate. The proxy must provide a trustworthy forwarded scheme value if
+HTTPS enforcement is enabled. The repository's Compose files support local
+development; production routing, storage of secrets, and network exposure are
+deployment-specific.

@@ -1,44 +1,42 @@
 # Slate
 
-Slate is a kitchen-mounted home information display. A server gathers data from
-pluggable sources, renders a monochrome 800×480 image, and serves it to an ESP32.
-The ESP32 polls periodically and refreshes the e-paper only when the image has
-changed.
+Slate is an ESP32 driven, 800×480 monochrome e-paper information display. A
+server combines data from independent providers, renders a frame, and serves it
+to the display. The device checks for changes and updates the panel when needed.
 
-Slate is intended to become a public project. Keep the repository safe and
-presentable for public readers: never commit credentials, access tokens,
-private household data, or unredacted configuration. Use ignored local
-configuration files and sanitized examples.
+The repository contains the firmware and server application. Production
+deployment is environment-specific; this public repository documents the
+application requirements and local development workflow without relying on a
+particular home network or deployment platform.
+
+## Get started
+
+- [Setup and commissioning](docs/getting-started.md) — run a local preview,
+  configure a device, and verify the full display path.
+- [Troubleshooting](docs/troubleshooting.md) — resolve common setup and display
+  problems.
+
+## Project documentation
+
+- [Server guide](server/README.md) — run the renderer, edit its sample layout,
+  and add data providers.
+- [Provider guides](docs/providers/README.md) — configure the sample and Google
+  Calendar iCal providers.
+- [Firmware guide](firmware/README.md) — configure, build, flash, and monitor
+  the ESP32.
+- [Architecture and frame format](docs/architecture.md) — service boundaries,
+  image contract, authentication, and refresh behavior.
+- [Hardware notes](docs/hardware.md) and [wiring](docs/wiring.jpeg) — validated
+  board settings, wiring, and display profile.
 
 ## Hardware
 
-- ESP32 (ESP-WROOM-32) on a DevKit V1
-- Waveshare e-Paper Driver HAT Rev 2.2, configured for 0.47R and 4-wire SPI
-- Waveshare 7.5-inch black-and-white display, 800×480
-- Wiring: [docs/wiring.jpeg](docs/wiring.jpeg)
+The tested setup uses an ESP32 DevKit V1, Waveshare e-Paper Driver HAT Rev 2.2,
+and a 7.5-inch black-and-white 800×480 panel. The working wiring and HAT
+settings are recorded in the hardware notes.
 
-The wiring and HAT settings are validated. The panel's precise revision is not
-identified; visible markings are `DEP607508NU790F30` and
-`N2104P-0117-01-10`. Confirm a compatible initialization sequence during the
-diagnostic display bring-up rather than changing the working wiring.
+## Public repository safety
 
-## Repository
-
-- [firmware/](firmware/) — ESP32 client and device build/flash workflow
-- [server/](server/) — renderer, integrations, and image endpoint
-- [docs/project-outline.md](docs/project-outline.md) — initial scope and design
-- [docs/architecture.md](docs/architecture.md) — image delivery and security
-- [docs/hardware.md](docs/hardware.md) — confirmed wiring/settings and panel notes
-- [docs/issue-backlog.md](docs/issue-backlog.md) — ordered GitHub issue plan
-
-## First milestone
-
-Bring up the display from a fresh firmware build, connect to Wi-Fi, fetch a
-known test image from the server, and prove that unchanged images do not cause
-unnecessary panel refreshes. Then add the first useful layout and integration.
-
-## Status
-
-This repository is at project bootstrap. See the [GitHub issues](https://github.com/mtak/Slate/issues)
-for the implementation sequence. Hardware wiring is documented in
-[`docs/wiring.jpeg`](docs/wiring.jpeg).
+Examples use placeholders. Keep Wi-Fi credentials, device tokens, certificates,
+household data, and deployment-specific configuration in ignored local files or
+private deployment configuration. Review changes before publishing them.

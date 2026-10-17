@@ -1,4 +1,6 @@
 #include "frame.h"
+#include "frame_diff.h"
+#include "refresh_policy.h"
 #include "wifi_retry.h"
 
 #include <stdio.h>
@@ -82,6 +84,70 @@ void testWifiRetryBackoffIsBounded() {
   expect(slate::nextWifiRetryDelay(30000, 30000) == 30000,
          "Wi-Fi retry delay stays capped");
 }
+
+void testRefreshPolicyUsesConfiguredPartialCount() {
+  using slate::RefreshMode;
+  expect(slate::chooseRefreshMode(false, 0, 2) == RefreshMode::Full,
+         "the first displayed frame uses a full refresh");
+
+  uint32_t partialRefreshesSinceFull = 0;
+  for (uint32_t expected = 1; expected <= 2; ++expected) {
+    const RefreshMode mode = slate::chooseRefreshMode(
+        true, partialRefreshesSinceFull, 2);
+    expect(mode == RefreshMode::Partial,
+           "the configured number of partial refreshes is selected");
+    partialRefreshesSinceFull =
+        slate::partialRefreshesAfterSuccess(mode, partialRefreshesSinceFull);
+    expect(partialRefreshesSinceFull == expected,
+           "successful partial refreshes advance the counter");
+  }
+
+  const RefreshMode full = slate::chooseRefreshMode(
+      true, partialRefreshesSinceFull, 2);
+  expect(full == RefreshMode::Full,
+         "a full refresh follows the configured partial refreshes");
+  expect(slate::partialRefreshesAfterSuccess(full, partialRefreshesSinceFull) == 0,
+         "a successful full refresh resets the partial refresh counter");
+  expect(slate::chooseRefreshMode(true, 0, 0) == RefreshMode::Full,
+         "a configured count of zero disables partial refreshes");
+}
+
+void testFrameDiffBuildsByteAlignedChangedBounds() {
+  slate::FrameDiff diff;
+  expect(!diff.region().changed, "unchanged frame has no changed region");
+  diff.record(12, 30);
+  diff.record(15, 27);
+  diff.record(4, 33);
+  const slate::ChangedRegion region = diff.region();
+  expect(region.changed, "changed bytes produce a region");
+  expect(region.x == 32 && region.y == 27,
+         "region starts at the first changed byte and row");
+  expect(region.width == 96 && region.height == 7,
+         "region covers changed byte and row bounds");
+}
+
+void testFrameDiffComparesAndReplacesRowsInPlace() {
+  uint8_t frame[slate::kFrameSize];
+  uint8_t incoming[slate::kBytesPerRow];
+  slate::clearFrame(frame);
+  slate::FrameDiff diff;
+
+  memset(incoming, 0xFF, sizeof(incoming));
+  incoming[3] = 0xF0;
+  diff.compareAndReplaceRow(frame, 14, incoming);
+  expect(frame[14 * slate::kBytesPerRow + 3] == 0xF0,
+         "incoming row replaces its old bytes in place");
+
+  memset(incoming, 0xFF, sizeof(incoming));
+  incoming[7] = 0x0F;
+  diff.compareAndReplaceRow(frame, 16, incoming);
+  const slate::ChangedRegion region = diff.region();
+  expect(region.changed && region.x == 24 && region.y == 14 &&
+             region.width == 40 && region.height == 3,
+         "row comparisons accumulate bounds across separated changes");
+  expect(frame[16 * slate::kBytesPerRow + 7] == 0x0F,
+         "later incoming row also replaces its old bytes");
+}
 }  // namespace
 
 int main() {
@@ -89,6 +155,9 @@ int main() {
   testClippingAndRectangleFill();
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
   testWifiRetryBackoffIsBounded();
-  puts("Firmware frame tests passed");
+  testRefreshPolicyUsesConfiguredPartialCount();
+  testFrameDiffBuildsByteAlignedChangedBounds();
+  testFrameDiffComparesAndReplacesRowsInPlace();
+  puts("Firmware tests passed");
   return 0;
 }

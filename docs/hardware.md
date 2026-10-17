@@ -24,7 +24,10 @@ their example programs can differ. If a label is hidden by the mounted HAT,
 inspect the exposed back/edge only if it can be done without stressing the
 panel's fragile flex cable. There is no need to dismantle the assembly just to
 read a revision label: a diagnostic firmware test can validate a suitable
-800×480 profile against the working hardware.
+800×480 profile against the working hardware. The panel is currently enclosed
+in a case, and the case will not be removed to expose hidden markings. No
+reliable non-destructive evidence currently identifies the exact panel revision
+or its sale date, so leave both unknown.
 
 The 0.47R resistor and 4-line SPI selections are already known and validated,
 so they are not unresolved wiring questions.
@@ -78,3 +81,39 @@ The profile sources are pinned and attributed in
 [`firmware/vendor/waveshare/README.md`](../firmware/vendor/waveshare/README.md).
 Both profiles are confirmed compatible with the panel. Keep `7.5V2` as the
 default and retain `7.5V2_old` as a validated alternative.
+
+### Partial-refresh comparison (2026-10-17)
+
+A first controlled comparison used four high-contrast full-screen frames, with
+two partial updates between full updates. Serial output confirmed the partial
+updates ran, but the user saw no clear difference in flashing. A follow-up used
+a 160×80 partial window over a static diagnostic frame. The user observed
+flashing in the subwindow followed by the checkerboard appearing there. This
+confirms the small-window update works and confines the visible activity to
+that window, although it still flashes locally. The test then performed a full
+refresh to restore the baseline and clear ghosting. Both `7.5V2` and
+`7.5V2_old` diagnostic builds compiled; the user-visible small-window result
+was observed with `7.5V2`. This does not identify the panel revision. The
+device's saved original firmware was restored after the diagnostic.
+
+A local changed-region diagnostic then displayed the static baseline, compared
+incoming rows in place, and sent the detected window through the same strided
+partial-transfer routine as the frame client. The firmware reported the
+expected 104×16 window at x=80, y=286, and completed without a busy timeout.
+The user observed two separate black bars at those positions on the panel and
+reported that the smaller region flashed a couple of times, only within that
+region. This confirms the local diff and strided partial update produced the
+intended visible marks and confined the observed activity to its computed
+window. The pre-test firmware image was restored afterward.
+
+This result differs from Waveshare's [7.5-inch HAT manual](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual),
+which says a full refresh flashes several times to clear afterimages and a
+partial refresh has no flickering effect. The manual lists approximate refresh
+times of 4 seconds full and 0.4 seconds partial, with actual results varying.
+The Waveshare manual describes partial refresh as having no flickering effect;
+on this panel the small-window result shows that this should be interpreted as
+avoiding the full-screen flash, not as guaranteeing a completely flash-free
+changed region. A full refresh after partial updates remains useful for clearing
+ghosting, as Waveshare recommends after several partial updates. The exact
+panel revision remains unknown because its markings are concealed by the case,
+which the user does not want to remove.
