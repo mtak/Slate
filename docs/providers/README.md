@@ -8,6 +8,7 @@ when that URL is configured.
 | --- | --- | --- |
 | Sample data | [Sample provider](sample.md) | None |
 | Current date | [Current date provider](current-date.md) | None |
+| Daily affirmation | [Daily affirmation provider](daily-affirmation.md) | None |
 | Google Calendar iCal feed | [Google Calendar iCal feed](google-calendar-ical.md) | Secret HTTPS feed URL in local `.env` |
 
 Every provider returns named values through `get_data()`. The renderer uses

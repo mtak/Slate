@@ -14,7 +14,7 @@ from frame import (
     sample_frame,
     validate_frame,
 )
-from providers import CurrentDateProvider, SampleProvider
+from providers import CurrentDateProvider, DailyAffirmationProvider, SampleProvider
 from renderer import Renderer
 
 DEVICE_TOKEN = "test-only-device-token"
@@ -66,7 +66,9 @@ class FrameContractTests(unittest.TestCase):
             thread.join()
 
     def test_default_endpoint_serves_layout_rendered_frame(self):
-        expected = Renderer.from_file().render(SampleProvider().get_data())
+        data = SampleProvider().get_data()
+        data.update(DailyAffirmationProvider().get_data())
+        expected = Renderer.from_file().render(data)
         server = create_server(port=0, device_token=DEVICE_TOKEN)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -148,11 +150,28 @@ class RendererTests(unittest.TestCase):
 
     def test_default_layout_renders_sample_values_to_frame_contract(self):
         renderer = Renderer.from_file()
-        frame = renderer.render(SampleProvider().get_data())
+        data = SampleProvider().get_data()
+        data.update(DailyAffirmationProvider().get_data())
+        frame = renderer.render(data)
         self.assertEqual(len(frame), FRAME_SIZE)
         self.assertTrue(pixel_is_black(frame, 24, 24))
         self.assertTrue(pixel_is_black(frame, 50, 112))
-        self.assertFalse(pixel_is_black(frame, 400, 400))
+        self.assertFalse(pixel_is_black(frame, 760, 400))
+
+    def test_wrapped_text_stays_inside_its_configured_width(self):
+        layout = {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "blocks": [{"type": "wrapped_text", "key": "affirmation", "x": 20, "y": 20,
+                        "size": 24, "max_width": 200, "max_lines": 2}],
+        }
+
+        frame = Renderer(layout).render({"affirmation": "A thoughtful affirmation that wraps to multiple lines"})
+
+        self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(20, 50) for x in range(20, 220)))
+        self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(50, 80) for x in range(20, 220)))
+        self.assertFalse(any(pixel_is_black(frame, x, y) for y in range(80, 110) for x in range(20, 220)))
+        self.assertFalse(any(pixel_is_black(frame, x, y) for y in range(20, 80) for x in range(220, WIDTH)))
 
     def test_layout_is_editable_without_changing_provider(self):
         layout = {

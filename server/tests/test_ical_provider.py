@@ -1,11 +1,11 @@
 import os
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import requests
 
-from providers import ICalendarProvider, SampleProvider, provider_from_environment
+from providers import DailyAffirmationProvider, ICalendarProvider, SampleProvider, provider_from_environment
 
 
 class FakeResponse:
@@ -82,6 +82,20 @@ END:VCALENDAR
             with self.assertRaisesRegex(RuntimeError, "Unable to read") as error:
                 provider.get_data()
         self.assertNotIn(secret_url, str(error.exception))
+
+
+class DailyAffirmationProviderTests(unittest.TestCase):
+    def test_selects_the_same_affirmation_within_a_day_and_advances_the_next_day(self):
+        first_day = date(2026, 10, 17)
+        provider = DailyAffirmationProvider(today=lambda: first_day)
+        first = provider.get_data()
+
+        self.assertEqual(provider.get_data(), first)
+        self.assertEqual(provider.get_data()["affirmation_heading"], "Listen b*tch")
+        self.assertNotEqual(
+            first["affirmation"],
+            DailyAffirmationProvider(today=lambda: first_day + timedelta(days=1)).get_data()["affirmation"],
+        )
 
 
 if __name__ == "__main__":
