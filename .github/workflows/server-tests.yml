@@ -7,11 +7,19 @@ on:
       - "docs/architecture.md"
       - ".github/workflows/server-tests.yml"
 
+permissions:
+  contents: read
+
 jobs:
   server-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install server dependencies
+        run: python3 -m pip install -r requirements.txt
+        working-directory: server
       - name: Run server tests
         run: python3 -m unittest discover -s tests -v
         working-directory: server

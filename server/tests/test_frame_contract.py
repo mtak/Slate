@@ -12,6 +12,8 @@ from frame import (
     sample_frame,
     validate_frame,
 )
+from providers import SampleProvider
+from renderer import Renderer
 
 
 class FrameContractTests(unittest.TestCase):
@@ -58,6 +60,45 @@ class FrameContractTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+    def test_default_endpoint_serves_layout_rendered_frame(self):
+        expected = Renderer.from_file().render(SampleProvider().get_data())
+        server = create_server(port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}") as response:
+                self.assertEqual(response.read(), expected)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+
+class RendererTests(unittest.TestCase):
+    def test_default_layout_renders_sample_values_to_frame_contract(self):
+        renderer = Renderer.from_file()
+        frame = renderer.render(SampleProvider().get_data())
+        self.assertEqual(len(frame), FRAME_SIZE)
+        self.assertTrue(pixel_is_black(frame, 24, 24))
+        self.assertTrue(pixel_is_black(frame, 50, 112))
+        self.assertFalse(pixel_is_black(frame, 400, 400))
+
+    def test_layout_is_editable_without_changing_provider(self):
+        layout = {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "blocks": [{"type": "text", "key": "message", "x": 80, "y": 90, "size": 24}],
+        }
+        frame = Renderer(layout).render({"message": "A sample"})
+        self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(90, 120) for x in range(80, 200)))
+
+    def test_invalid_layout_dimensions_and_missing_data_are_rejected(self):
+        with self.assertRaises(ValueError):
+            Renderer({"width": 400, "height": HEIGHT, "blocks": []})
+        renderer = Renderer({"width": WIDTH, "height": HEIGHT, "blocks": [{"type": "text", "key": "missing"}]})
+        with self.assertRaisesRegex(ValueError, "missing data key"):
+            renderer.render({})
 
 
 if __name__ == "__main__":
