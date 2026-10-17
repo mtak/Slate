@@ -25,19 +25,20 @@ For Docker Compose, set `SLATE_LITERAL_TEXT_FILE` in the root `.env` file to
 at `/config`, so the local file is available to the service. Keep the real
 file private; Git ignores `server/literal-text.json`.
 
-Edit the local JSON file to change the message. It must be a JSON object whose
-keys are layout keys and whose values are strings:
+Edit the local JSON file to change either text. It must be a JSON object whose
+keys are layout keys and whose values are strings. Each entry creates an
+independent provider instance:
 
 ```json
 {
-  "literal_message": "Take a moment to enjoy the little things."
+  "literal_message": "Take a moment to enjoy the little things.",
+  "literal_reminder": "Pause and stretch."
 }
 ```
 
-If you also want a heading, add a second entry such as
-`"literal_heading": "A note for today"` and add a second text block that uses
-the `literal_heading` key. That entry becomes another provider instance; there
-is no special heading or message behavior.
+Add more entries and layout blocks in the same way. For example, a separate
+heading can be another entry with its own key; the provider treats every value
+as plain text.
 
 The provider reads the file again when rendering, and changes to it trigger a
 new frame. If the path is set but the file is missing, unreadable, malformed,
@@ -47,16 +48,16 @@ date, or daily affirmation providers.
 
 ## Display and style the text
 
-Add a block for the configured key to `server/layout.json`. The provider
-supplies the words; the layout controls position and appearance. For example:
+Add a block for each configured key to `server/layout.json`. Each provider
+supplies one value; the layout controls position and appearance. For example:
 
 ```json
 {"type": "wrapped_text", "key": "literal_message", "x": 48, "y": 120, "size": 28, "max_width": 680, "max_lines": 3}
+{"type": "text", "key": "literal_reminder", "x": 48, "y": 260, "size": 28, "bold": true}
 ```
 
-For a single-line heading or other short text, use a `text` block and set its
-`size` and `bold` options as needed. A second configured entry can supply its
-key.
+Use `text` for a single line and set its `size` and `bold` options as needed.
+Use `wrapped_text` for a longer value.
 
 `text` draws a single line. `wrapped_text` wraps at word boundaries and clips
 excess lines with an ellipsis. See the [layout guide](../../server/README.md#edit-the-layout)
@@ -78,8 +79,8 @@ python3 app.py
 ```
 
 Open <http://127.0.0.1:18045/preview> and enter `demo-token` to view the
-800×480 monochrome frame. The demo layout shows one wrapped message. To return
-to the normal sample layout, unset
+800×480 monochrome frame. The demo shows two independent values: a wrapped
+message and a bold reminder. To return to the normal sample layout, unset
 `SLATE_LAYOUT_PATH` and restart the server.
 
-![Preview of the literal text example with one wrapped message](literal-text-demo.png)
+![Preview of two literal text provider instances with different layout styles](literal-text-demo.png)
