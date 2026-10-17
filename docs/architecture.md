@@ -91,9 +91,10 @@ backoff.
 ## Deployment
 
 Docker Compose runs the renderer/API as one service initially. It bind-mounts
-`server/layout.json` from the host, so edits persist outside the image; the
-service detects layout edits on frame requests. `/preview` polls every five
-seconds and redraws when the ETag changes. `.env` can set `SLATE_PORT` and
+the host's `server/` directory read-only, so layout edits persist outside the
+image and atomic file saves are visible inside the container. The service
+detects layout edits on frame requests. `/preview` polls every five seconds and
+redraws when the ETag changes. `.env` can set `SLATE_PORT` and
 `SLATE_REFRESH_SECONDS` and is kept local. Expose the browser preview and
 authenticated device endpoint on the trusted home network; TLS termination may
 be provided by an existing reverse proxy, provided the ESP32 connects to the

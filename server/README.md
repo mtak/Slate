@@ -51,8 +51,10 @@ docker compose up --build
 
 Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
 `SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
-`server/layout.json` into the container, so layout edits remain on the host.
-The server checks that file on each frame request and renders a new frame when
+`server/` into the container as read-only, so layout edits remain on the host
+and cannot be changed from inside the container. Mounting the directory keeps
+atomic file saves from being hidden behind a stale single-file mount. The
+server checks `layout.json` on each frame request and renders a new frame when
 it changes. The open browser preview polls every five seconds and redraws only
 when the ETag changes. The sample layout and provider contain no
 household-specific data.
