@@ -29,8 +29,26 @@ with a delay that doubles from 1 second to a 30-second cap. The main loop
 detects a dropped connection and starts the same retry sequence. A 60-second
 ESP32 task watchdog restarts the device if the application stops making
 progress. The firmware feeds it during connection waits and once per healthy
-main-loop iteration. Check the serial monitor for connection and watchdog
-messages when diagnosing a device.
+main-loop iteration. Before connecting, it sets the station hostname to
+`Slate-` followed by the final six hexadecimal characters of the station MAC
+address in uppercase (for example, `Slate-6908F8`). Check the serial monitor
+for the exact hostname, then find it in the router's DHCP/client list. Whether
+that hostname also resolves as a local DNS name depends on the router; mDNS is
+not enabled by this firmware.
+
+To see the hostname on a device, flash the firmware and open its serial
+monitor:
+
+```sh
+make build
+make upload PORT=/dev/ttyUSB0
+make monitor PORT=/dev/ttyUSB0
+```
+
+After Wi-Fi connects, the monitor prints a line such as `Wi-Fi hostname:
+Slate-6908F8`. Confirm the same name appears in the router's DHCP/client list.
+This demo requires a configured Wi-Fi network and an ESP32; the hostname format
+is also covered by the hardware-independent `make test` command.
 
 ## Build and flash
 

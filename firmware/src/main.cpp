@@ -10,6 +10,7 @@
 #include "frame.h"
 #include "frame_diff.h"
 #include "refresh_policy.h"
+#include "device_hostname.h"
 #include "wifi_retry.h"
 #include "../vendor/waveshare/Config/DEV_Config.h"
 
@@ -203,7 +204,23 @@ void connectToWifi() {
     return;
   }
 
-  WiFi.mode(WIFI_STA);
+  char hostname[slate::kDeviceHostnameSize];
+  const String macAddress = WiFi.macAddress();
+  const bool hostnameAvailable = slate::makeDeviceHostname(
+      macAddress.c_str(), hostname, sizeof(hostname));
+  if (hostnameAvailable) {
+    // WiFi.mode() applies the stored hostname to the station interface.
+    WiFi.setHostname(hostname);
+  } else {
+    Serial.println("Could not create Wi-Fi hostname from station MAC");
+  }
+  if (!WiFi.mode(WIFI_STA)) {
+    Serial.println("Could not start Wi-Fi station");
+    return;
+  }
+  if (hostnameAvailable) {
+    Serial.printf("Wi-Fi hostname: %s\n", hostname);
+  }
   uint32_t retryDelayMs = kReconnectInitialDelayMs;
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Connecting to Wi-Fi");
