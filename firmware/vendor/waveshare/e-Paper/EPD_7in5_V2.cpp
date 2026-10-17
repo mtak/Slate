@@ -29,6 +29,7 @@
 #
 ******************************************************************************/
 #include "EPD_7in5_V2.h"
+#include <esp_task_wdt.h>
 
 /******************************************************************************
 function :	Software reset
@@ -85,13 +86,20 @@ parameter:
 static void EPD_WaitUntilIdle(void)
 {
     const uint32_t start = millis();
+    uint32_t lastWatchdogFeed = start;
     while (DEV_Digital_Read(EPD_BUSY_PIN) != 1)
     {
-        if (millis() - start >= 60000UL)
+        const uint32_t now = millis();
+        if (now - start >= 60000UL)
         {
             slateEpdBusyTimeout = true;
             Debug("e-Paper busy timeout\r\n");
             return;
+        }
+        if (now - lastWatchdogFeed >= 1000UL)
+        {
+            esp_task_wdt_reset();
+            lastWatchdogFeed = now;
         }
         DEV_Delay_ms(5);
     }

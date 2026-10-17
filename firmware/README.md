@@ -115,6 +115,15 @@ the documented panel. Both profiles use the same 800×480 frame contract and
 busy-signal timeout. The first update is a full refresh, followed by the
 configured partial/full cadence.
 
+Both driver profiles feed the task watchdog during BUSY polling, then return
+the existing 60-second timeout to the frame client. To check this recovery on
+hardware, keep a known-good image on the panel, prevent the BUSY input from
+releasing during a refresh, and monitor serial output. The firmware should log
+`Panel refresh timed out; keeping current display`, keep the existing image,
+and continue polling without a watchdog reset. Restore BUSY before the next
+retry. Do not short the BUSY pin; use a controlled signal source or disconnect
+the panel with power off and follow the board's electrical limits.
+
 ### Optional task-watchdog hardware demo
 
 Build and flash the explicitly opt-in `slate_esp32_watchdog_demo` environment:
