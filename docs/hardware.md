@@ -12,10 +12,9 @@
 Visible panel markings: `DEP607508NU790F30` and `N2104P-0117-01-10`. These have
 not been matched to a public Waveshare revision label or controller profile.
 The wiring photograph also shows `FPC-8612` printed on the flex cable; that
-marking has not been mapped to a controller profile either.
-Keep the existing wiring and HAT switch settings. Use the initial diagnostic
-image to confirm the appropriate driver initialization profile before adding
-higher-level behavior.
+marking has not been mapped to a controller profile either. The confirmed
+control wiring is BUSY 4, RST 21, DC 22, CS 5, CLK 18, and DIN 23. Keep the
+existing wiring and HAT switch settings.
 
 ## Identifying the panel revision
 
@@ -37,18 +36,17 @@ identifies V2 as 800×480 and V1 as 640×384. It also distinguishes two V2
 program variants: `7.5V2` for versions sold after September 2023 and
 `7.5V2_old` for versions sold before then. This makes the V2 family the
 candidate family for this panel, but resolution alone does not identify its
-controller or initialization sequence. The markings above have not been
-matched to a profile or manufacture/sale date; neither variant is confirmed.
+controller revision or manufacture/sale date. Both example profiles have
+since been tested against this panel.
 
-If a V2 label or reliable sale/revision evidence is visible without stressing
-the panel or flex cable, use it to choose the first candidate. Otherwise,
-compare the Waveshare `7.5V2` and `7.5V2_old` profiles one at a time. Do not
-infer that `N2104` is a date code without evidence from Waveshare.
+Do not infer that `N2104` is a date code without evidence from Waveshare. The
+diagnostic confirmed both profile variants work, so the default newer profile
+is selected; exact panel revision remains unidentified.
 
-The firmware now contains a one-shot diagnostic build for both Waveshare
-profiles. It uses the validated ESP32 wiring (BUSY 25, RST 26, DC 27, CS 15,
-CLK 18, DIN 23) and a labeled 800×480 pattern with black/white blocks, a
-checkerboard, and corner marks. The tested sources are Waveshare's
+The firmware contains a one-shot diagnostic build for both Waveshare profiles.
+It uses the confirmed ESP32 wiring (BUSY 4, RST 21, DC 22, CS 5, CLK 18,
+DIN 23) and a labeled 800×480 pattern with black/white blocks, a checkerboard,
+and corner marks. The tested sources are Waveshare's
 `EPD_7in5_V2` and `EPD_7in5_V2_old` implementations; the local SPI adapter uses
 a 60-second busy timeout.
 
@@ -62,20 +60,21 @@ produces persistent noise or abnormal behavior.
 
 ### Hardware test results (2026-10-17)
 
-Both candidate builds compiled and were flashed successfully to the connected
-ESP32. The `7.5V2` and `7.5V2_old` runs each reported `e-Paper busy timeout`
-followed by `Panel initialization failed or timed out`. Neither profile
-reached the diagnostic frame, so no visible panel result was available and
-neither profile is selected. The same BUSY timeout on both candidates points
-to a remaining initialization or BUSY-signal issue; it does not identify the
-panel profile. Existing wiring and HAT settings were left unchanged.
+The initial profile runs used incorrect control GPIO mappings and timed out;
+those results are invalid. With the confirmed wiring (BUSY 4, RST 21, DC 22,
+CS 5, CLK 18, DIN 23), both the `slate_esp32_v2_old` and `slate_esp32` builds
+displayed their complete diagnostic frames. The user confirmed that both
+frames were correctly oriented and that the blocks, checkerboard, and all
+four corner marks were visible. Both `7.5V2_old` and `7.5V2` are therefore
+compatible with the panel.
 
-The `slate_esp32_v2_old` diagnostic firmware is currently flashed on the
-device. Continue by checking the BUSY signal and panel/HAT connection while
-keeping the fragile panel flex cable safe; then repeat the profile comparison
-after initialization proceeds beyond the BUSY wait.
+The default `7.5V2` profile is selected for firmware use; the panel revision
+and sale date remain unknown, so the test does not identify which controller
+revision is inside. The `7.5V2_old` environment remains available as a tested
+alternative. The 0.47R and 4-line SPI settings were not changed. The user's
+approximate 3.3 V measurement at HAT VCC/GND is also recorded.
 
 The profile sources are pinned and attributed in
 [`firmware/vendor/waveshare/README.md`](../firmware/vendor/waveshare/README.md).
-The selected profile remains **unconfirmed** until the physical diagnostic is
-run and its result is recorded here.
+Both profiles are confirmed compatible with the panel. Keep `7.5V2` as the
+default and retain `7.5V2_old` as a validated alternative.
