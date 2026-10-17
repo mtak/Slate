@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "wifi_retry.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,12 +73,22 @@ void testDiagnosticFrameIsDeterministicAndDistinguishesProfiles() {
   expect(memcmp(first, oldProfile, sizeof(first)) != 0,
          "profile label changes the generated frame");
 }
+
+void testWifiRetryBackoffIsBounded() {
+  expect(slate::nextWifiRetryDelay(1000, 30000) == 2000,
+         "Wi-Fi retry delay doubles after a failed attempt");
+  expect(slate::nextWifiRetryDelay(16000, 30000) == 30000,
+         "Wi-Fi retry delay caps at the configured maximum");
+  expect(slate::nextWifiRetryDelay(30000, 30000) == 30000,
+         "Wi-Fi retry delay stays capped");
+}
 }  // namespace
 
 int main() {
   testFrameContractAndPixelPacking();
   testClippingAndRectangleFill();
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
+  testWifiRetryBackoffIsBounded();
   puts("Firmware frame tests passed");
   return 0;
 }

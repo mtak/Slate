@@ -1,8 +1,15 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <WiFi.h>
+#include <esp_task_wdt.h>
 
 #include "frame.h"
+#include "wifi_retry.h"
 #include "../vendor/waveshare/Config/DEV_Config.h"
+
+#if __has_include("slate_config.h")
+#include "slate_config.h"
+#endif
 
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
 #include "../vendor/waveshare/e-Paper/EPD_7in5_V2_old.cpp"
@@ -17,6 +24,62 @@ constexpr bool kOldProfile = true;
 constexpr bool kOldProfile = false;
 #endif
 uint8_t frame[slate::kFrameSize];
+constexpr uint32_t kWatchdogTimeoutSeconds = 60;
+constexpr uint32_t kReconnectInitialDelayMs = 1000;
+constexpr uint32_t kReconnectMaxDelayMs = 30000;
+constexpr uint32_t kWatchdogFeedIntervalMs = 1000;
+#if defined(SLATE_WIFI_SSID) && defined(SLATE_WIFI_PASSWORD)
+constexpr bool kWifiConfigured = true;
+#else
+constexpr bool kWifiConfigured = false;
+#endif
+
+void feedWatchdog() { esp_task_wdt_reset(); }
+
+void waitWithWatchdog(uint32_t durationMs) {
+  const uint32_t startedAt = millis();
+  while (millis() - startedAt < durationMs) {
+    feedWatchdog();
+    delay(kWatchdogFeedIntervalMs);
+  }
+}
+
+void connectToWifi() {
+#if !defined(SLATE_WIFI_SSID) || !defined(SLATE_WIFI_PASSWORD)
+  Serial.println("Wi-Fi is not configured; copy include/slate_config.h.example");
+  return;
+#else
+  if (SLATE_WIFI_SSID[0] == '\0') {
+    Serial.println("Wi-Fi is not configured; set credentials in slate_config.h");
+    return;
+  }
+
+  WiFi.mode(WIFI_STA);
+  uint32_t retryDelayMs = kReconnectInitialDelayMs;
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Connecting to Wi-Fi");
+    WiFi.begin(SLATE_WIFI_SSID, SLATE_WIFI_PASSWORD);
+    const uint32_t attemptStartedAt = millis();
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - attemptStartedAt < retryDelayMs) {
+      waitWithWatchdog(kWatchdogFeedIntervalMs);
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Wi-Fi connected");
+      return;
+    }
+    Serial.println("Wi-Fi connection attempt timed out; retrying");
+    retryDelayMs = slate::nextWifiRetryDelay(retryDelayMs, kReconnectMaxDelayMs);
+  }
+#endif
+}
+
+void maintainWifi() {
+  if (!kWifiConfigured) return;
+  if (WiFi.status() == WL_CONNECTED) return;
+  Serial.println("Wi-Fi connection lost; reconnecting");
+  connectToWifi();
+}
 
 void showDiagnosticFrame() {
   slate::drawDiagnosticFrame(frame, kOldProfile);
@@ -54,7 +117,15 @@ void sleepPanel() {
 void setup() {
   Serial.begin(115200);
   delay(250);
+  if (esp_task_wdt_init(kWatchdogTimeoutSeconds, true) != ESP_OK ||
+      esp_task_wdt_add(NULL) != ESP_OK) {
+    Serial.println("Could not initialize task watchdog");
+    ESP.restart();
+  }
   Serial.println("Slate e-paper driver-profile diagnostic");
+
+  connectToWifi();
+  feedWatchdog();
 
   DEV_Module_Init();
   if (!initializePanel()) {
@@ -80,5 +151,7 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
+  maintainWifi();
+  feedWatchdog();
+  delay(kWatchdogFeedIntervalMs);
 }

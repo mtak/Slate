@@ -14,10 +14,18 @@ From this directory, run:
 cp include/slate_config.h.example include/slate_config.h
 ```
 
-Edit `include/slate_config.h` for local device settings when a later firmware
-feature requires them. The current bootstrap does not use this file. Keep real
-Wi-Fi passwords and server tokens in the local file; it is ignored by Git.
-Never put third-party integration credentials in firmware.
+Edit `include/slate_config.h` and set the Wi-Fi SSID and password. The file is
+included by the firmware when present and is ignored by Git. Keep real Wi-Fi
+passwords and server tokens in this local file. Never put third-party
+integration credentials in firmware.
+
+At boot, firmware attempts to connect as a Wi-Fi station and retries forever
+with a delay that doubles from 1 second to a 30-second cap. The main loop
+detects a dropped connection and starts the same retry sequence. A 60-second
+ESP32 task watchdog restarts the device if the application stops making
+progress. The firmware feeds it during connection waits and once per healthy
+main-loop iteration. Check the serial monitor for connection and watchdog
+messages when diagnosing a device.
 
 ## Build and flash
 
