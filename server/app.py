@@ -2,13 +2,14 @@
 
 import hashlib
 import hmac
+import logging
 import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
-from providers import SampleProvider
+from providers import provider_from_environment
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
@@ -91,7 +92,7 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
             stat = os.stat(layout_file)
             return stat.st_mtime_ns, stat.st_size
 
-        provider = SampleProvider()
+        provider = provider_from_environment()
         frame_provider = lambda: Renderer.from_file(layout_file).render(provider.get_data())
         cache_key_provider = layout_file_signature
     cached_frame = CachedFrame(frame_provider, refresh_seconds, cache_key_provider)
@@ -120,7 +121,8 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                     return
                 try:
                     frame, etag = cached_frame.get()
-                except (OSError, TypeError, ValueError):
+                except Exception:
+                    logging.exception("Slate frame render failed")
                     self.send_error(500, "Frame could not be rendered")
                     return
                 if self.headers.get("If-None-Match"):

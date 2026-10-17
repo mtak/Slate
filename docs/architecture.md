@@ -22,8 +22,8 @@ must not know about the display hardware. Layout/rendering code should accept
 provider data and produce an 800×480, 1-bit image.
 
 The renderer's provider interface is `get_data()`, returning named values for
-layout text blocks. The JSON layout defines block type, position, and style;
-the initial renderer supports text, lines, and outlined rectangles. Pillow
+layout blocks. The JSON layout defines block type, position, and style; the
+renderer supports text, lines, outlined rectangles, and event lists. Pillow
 converts the result to the v1 raw frame bytes.
 
 The ESP32 owns Wi-Fi connectivity, authenticated image retrieval, change

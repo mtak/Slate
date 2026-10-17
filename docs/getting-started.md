@@ -27,7 +27,8 @@ Open <http://127.0.0.1:8000/preview> and enter the device token when prompted.
 The preview requests the current sample frame and refreshes when its content
 changes. Stop the service with Ctrl-C.
 See the [server guide](../server/README.md) to run without Docker or edit the
-layout and providers.
+layout and providers. To connect a Google Calendar, follow the
+[iCal provider guide](providers/google-calendar-ical.md).
 
 This local preview is for development. The public server application speaks
 plain HTTP internally; a production deployment must provide HTTPS at the

@@ -38,6 +38,7 @@ The layout supports these block types:
 | `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
+| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`; optional `max_width` clips text with `...` at that many pixels. |
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
 a 42-pixel font:
@@ -59,15 +60,17 @@ Docker Compose, edit the host copy of `server/layout.json`.
 
 A provider supplies the values used by text blocks. The interface is the
 `Provider` protocol in [`providers.py`](providers.py): implement
-`get_data()` and return a dictionary whose keys are names and whose values are
-strings. For example:
+`get_data()` and return a dictionary whose keys are names used by the layout.
+Text values are strings; an event list contains title, date, and time fields.
+For example:
 
 ```python
 class SampleProvider:
-    def get_data(self) -> dict[str, str]:
+    def get_data(self) -> dict[str, object]:
         return {
             "greeting": "Good morning",
             "date": "Saturday, October 17",
+            "events": [{"title": "Coffee", "date": "Today", "time": "10:30"}],
         }
 ```
 
@@ -83,6 +86,13 @@ interface, then wire it into the server in `app.py` in place of
 credentials in local or deployment configuration, never in source control.
 Editing provider code requires restarting the server; editing only
 `layout.json` does not.
+
+## Provider guides
+
+Provider-specific setup and behavior is documented in the
+[provider guides](../docs/providers/README.md). The sample provider is the
+default. To display a Google Calendar, follow the
+[iCal feed guide](../docs/providers/google-calendar-ical.md).
 
 ## Frame refresh and conditional requests
 

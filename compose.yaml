@@ -10,6 +10,10 @@ services:
       SLATE_DEVICE_TOKEN: ${SLATE_DEVICE_TOKEN:?Set SLATE_DEVICE_TOKEN in .env}
       SLATE_REQUIRE_HTTPS: ${SLATE_REQUIRE_HTTPS:-true}
       SLATE_LAYOUT_PATH: /config/layout.json
+      SLATE_CALENDAR_ICAL_URL: ${SLATE_CALENDAR_ICAL_URL:-}
+      TZ: ${TZ:-UTC}
+      SLATE_CALENDAR_MAX_EVENTS: ${SLATE_CALENDAR_MAX_EVENTS:-6}
+      SLATE_CALENDAR_DAYS_AHEAD: ${SLATE_CALENDAR_DAYS_AHEAD:-14}
     volumes:
       - ./server:/config:ro
     restart: unless-stopped
