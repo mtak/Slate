@@ -1,10 +1,15 @@
 PIO := .venv/bin/pio
 export PLATFORMIO_CORE_DIR := $(CURDIR)/.platformio
 
-.PHONY: setup build upload monitor clean
+.PHONY: setup test build upload monitor clean
 
 setup:
 	./scripts/setup.sh
+
+test:
+	@mkdir -p .test-build
+	$(CXX) -std=c++11 -Wall -Wextra -Werror -pedantic -Isrc src/frame.cpp tests/frame_test.cpp -o .test-build/frame_test
+	./.test-build/frame_test
 
 build:
 	$(PIO) run

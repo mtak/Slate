@@ -35,6 +35,10 @@ initialization profile with a diagnostic update.
   for browser preview.
 - The initial system is for one household and one display; avoid unnecessary
   service decomposition or complex deployment machinery.
+- Firmware changes that add or alter behavior should include deterministic,
+  hardware-independent regression tests for that behavior. Keep hardware access
+  behind small seams so core behavior can run in local tests and pull request
+  CI without an ESP32, display, network service, credentials, or timing waits.
 
 ## Initial technology direction
 
