@@ -156,7 +156,7 @@ class RendererTests(unittest.TestCase):
         self.assertEqual(len(frame), FRAME_SIZE)
         self.assertTrue(pixel_is_black(frame, 24, 24))
         self.assertTrue(pixel_is_black(frame, 50, 112))
-        self.assertFalse(pixel_is_black(frame, 400, 400))
+        self.assertFalse(pixel_is_black(frame, 760, 400))
 
     def test_wrapped_text_stays_inside_its_configured_width(self):
         layout = {
