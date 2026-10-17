@@ -31,6 +31,16 @@ class FrameDiff {
     if (row > maxRow_) maxRow_ = row;
   }
 
+  void compareAndReplaceRow(uint8_t *frame, uint16_t row,
+                            const uint8_t *incomingRow) {
+    if (row >= kDisplayHeight) return;
+    const size_t offset = static_cast<size_t>(row) * kBytesPerRow;
+    for (uint16_t column = 0; column < kBytesPerRow; ++column) {
+      if (incomingRow[column] != frame[offset + column]) record(column, row);
+      frame[offset + column] = incomingRow[column];
+    }
+  }
+
   ChangedRegion region() const {
     if (!changed_) return {false, 0, 0, 0, 0};
     return {true, static_cast<uint16_t>(minByte_ * 8), minRow_,

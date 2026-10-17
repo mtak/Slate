@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -20,6 +21,7 @@
 #else
 #include "../vendor/waveshare/e-Paper/EPD_7in5_V2.cpp"
 #endif
+#include "panel_partial.h"
 
 namespace {
 uint8_t frame[slate::kFrameSize];
@@ -116,13 +118,9 @@ bool fetchFrame(bool comparePartial) {
         ok = false;
         break;
       }
-      const size_t offset = static_cast<size_t>(y) * slate::kBytesPerRow;
-      for (uint16_t xByte = 0; xByte < slate::kBytesPerRow; ++xByte) {
-        if (comparePartial && incomingRow[xByte] != frame[offset + xByte]) {
-          diff.record(xByte, y);
-        }
-        frame[offset + xByte] = incomingRow[xByte];
-      }
+      if (comparePartial) diff.compareAndReplaceRow(frame, y, incomingRow);
+      else memcpy(frame + static_cast<size_t>(y) * slate::kBytesPerRow,
+                  incomingRow, sizeof(incomingRow));
     }
     if (ok) {
       const String responseEtag = request.header("ETag");
@@ -218,45 +216,6 @@ bool initializePanel(bool partialRefresh) {
   return result == 0 && !slateEpdBusyTimeout;
 }
 
-void displayStridedPartial(UBYTE *image, UDOUBLE xStart, UDOUBLE yStart,
-                           UDOUBLE xEnd, UDOUBLE yEnd, bool oldProfile) {
-  const UDOUBLE widthBytes = (xEnd - xStart) / 8;
-#if !defined(SLATE_EPD_PROFILE_V2_OLD)
-  if (!oldProfile) {
-    EPD_SendCommand(0x50);
-    EPD_SendData(0xA9);
-    EPD_SendData(0x07);
-  }
-#endif
-  EPD_SendCommand(0x91);
-  EPD_SendCommand(0x90);
-  EPD_SendData(xStart / 256);
-  EPD_SendData(xStart % 256);
-  if (oldProfile) {
-    EPD_SendData((xEnd - 1) / 256);
-    EPD_SendData((xEnd - 1) % 256);
-  } else {
-    EPD_SendData(xEnd / 256);
-    EPD_SendData(xEnd % 256 - 1);
-  }
-  EPD_SendData(yStart / 256);
-  EPD_SendData(yStart % 256);
-  if (oldProfile) {
-    EPD_SendData((yEnd - 1) / 256);
-    EPD_SendData((yEnd - 1) % 256);
-  } else {
-    EPD_SendData(yEnd / 256);
-    EPD_SendData(yEnd % 256 - 1);
-  }
-  EPD_SendData(0x01);
-  EPD_SendCommand(0x13);
-  for (UDOUBLE y = yStart; y < yEnd; ++y) {
-    EPD_SendData2(image + y * slate::kBytesPerRow + xStart / 8, widthBytes);
-  }
-  EPD_7IN5_V2_TurnOnDisplay();
-  if (oldProfile) EPD_SendCommand(0x92);
-}
-
 void sleepPanel() {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
   EPD_7IN5_V2_Sleep_old();
@@ -311,11 +270,11 @@ void pollForFrame() {
   havePanelRefreshAttempt = true;
   if (partialRefresh) {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
-    displayStridedPartial(frame, pendingRegionX, pendingRegionY,
-        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight, true);
+    slateDisplayStridedPartial(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight);
 #else
-    displayStridedPartial(frame, pendingRegionX, pendingRegionY,
-        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight, false);
+    slateDisplayStridedPartial(frame, pendingRegionX, pendingRegionY,
+        pendingRegionX + pendingRegionWidth, pendingRegionY + pendingRegionHeight);
 #endif
   } else {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)

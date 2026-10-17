@@ -64,13 +64,15 @@ The default `slate_esp32` environment runs the frame client with Waveshare's
 use the same 800×480 frame contract and busy-signal timeout. The initial frame
 is a full refresh, followed by the configured partial/full cadence.
 
-Build both frame-client profiles and both one-shot diagnostic profiles:
+Build both frame-client profiles and the panel diagnostic profiles:
 
 ```sh
 ./.venv/bin/pio run -e slate_esp32
 ./.venv/bin/pio run -e slate_esp32_v2_old
 ./.venv/bin/pio run -e slate_esp32_partial_diag
 ./.venv/bin/pio run -e slate_esp32_partial_diag_v2_old
+./.venv/bin/pio run -e slate_esp32_partial_diff_diag
+./.venv/bin/pio run -e slate_esp32_partial_diff_diag_v2_old
 ```
 
 The one-shot panel diagnostic environments each perform a full-frame baseline,
@@ -80,6 +82,14 @@ diagnostic, use `pio run -e <diagnostic-env> --target upload
 before uploading another build. Record the profile, visible result, and serial
 busy status. The regular `slate_esp32` and `slate_esp32_v2_old` environments
 run the configured network frame client.
+
+The `partial_diff_diag` environments exercise the same in-place row comparison
+and strided partial-window sender used by the frame client. They display a
+baseline, change two separated 24×16 black marks, compute the 104×16 bounding
+window between them, then pause on the resulting image for visual inspection.
+The serial log reports the detected bounds and busy timeout status. The panel
+remains on the test image until reset or another firmware is flashed; after
+inspection, run a full refresh to clear residual ghosting.
 Panel profile selection and attached-device results are tracked in
 [hardware notes](../docs/hardware.md).
 

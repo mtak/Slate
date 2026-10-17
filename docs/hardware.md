@@ -96,6 +96,14 @@ refresh to restore the baseline and clear ghosting. Both `7.5V2` and
 was observed with `7.5V2`. This does not identify the panel revision. The
 device's saved original firmware was restored after the diagnostic.
 
+A local changed-region diagnostic then displayed the static baseline, compared
+incoming rows in place, and sent the detected window through the same strided
+partial-transfer routine as the frame client. The firmware reported the
+expected 104×16 window at x=80, y=286, and completed without a busy timeout.
+The user observed two separate black bars at those positions on the panel.
+This confirms the local diff and partial window update produced the intended
+visible marks. The pre-test firmware image was restored afterward.
+
 This result differs from Waveshare's [7.5-inch HAT manual](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual),
 which says a full refresh flashes several times to clear afterimages and a
 partial refresh has no flickering effect. The manual lists approximate refresh
