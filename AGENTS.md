@@ -34,6 +34,8 @@ before committing.
 
 ## Validation
 
+- Use Playwright MCP for browser interactions when validating local web previews;
+  capture a screenshot when a visual artifact helps review the result.
 - Firmware changes should at least compile; hardware/display changes should be
   checked on the attached device when practical.
 - Server changes should be checked by rendering a sample image and viewing it

@@ -1,0 +1,17 @@
+name: Server tests
+
+on:
+  pull_request:
+    paths:
+      - "server/**"
+      - "docs/architecture.md"
+      - ".github/workflows/server-tests.yml"
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run server tests
+        run: python3 -m unittest discover -s tests -v
+        working-directory: server
