@@ -32,6 +32,12 @@ particular home network or deployment platform.
   image contract, authentication, and refresh behavior.
 - [Hardware notes](docs/hardware.md) and [wiring](docs/wiring.jpeg) — validated
   board settings, wiring, and display profile.
+- [Contributing](CONTRIBUTING.md) — contribution workflow and project
+  expectations.
+- [AI-assisted software engineering disclosure](AI-DISCLOSURE.md) — how AI
+  tools may be used and the human maintainer's responsibilities.
+- [![AI Contribution](https://raw.githubusercontent.com/Essk/ai-contribution-level/main/badges/level-3.svg)](https://github.com/Essk/ai-contribution-level)
+- [License](LICENSE) — GNU General Public License version 3.
 
 ## Hardware
 
