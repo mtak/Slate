@@ -8,13 +8,13 @@ using UBYTE = uint8_t;
 using UWORD = uint16_t;
 using UDOUBLE = uint32_t;
 
-// GPIO mapping from the documented ESP32 DevKit V1 wiring.
+// GPIO mapping from the confirmed ESP32 DevKit V1 wiring.
 #define EPD_SCK_PIN 18
 #define EPD_MOSI_PIN 23
-#define EPD_CS_PIN 15
-#define EPD_DC_PIN 27
-#define EPD_RST_PIN 26
-#define EPD_BUSY_PIN 25
+#define EPD_CS_PIN 5
+#define EPD_DC_PIN 22
+#define EPD_RST_PIN 21
+#define EPD_BUSY_PIN 4
 
 #define DEV_Digital_Write(pin, value) digitalWrite((pin), (value) ? HIGH : LOW)
 #define DEV_Digital_Read(pin) digitalRead(pin)
