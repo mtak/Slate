@@ -38,6 +38,7 @@ The layout supports these block types:
 | `text` | `key` | `x`, `y`, `size` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`. |
 | `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
+| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`. |
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
 a 42-pixel font:
@@ -59,15 +60,17 @@ Docker Compose, edit the host copy of `server/layout.json`.
 
 A provider supplies the values used by text blocks. The interface is the
 `Provider` protocol in [`providers.py`](providers.py): implement
-`get_data()` and return a dictionary whose keys are names and whose values are
-strings. For example:
+`get_data()` and return a dictionary whose keys are names used by the layout.
+Text values are strings; an event list contains title, date, and time fields.
+For example:
 
 ```python
 class SampleProvider:
-    def get_data(self) -> dict[str, str]:
+    def get_data(self) -> dict[str, object]:
         return {
             "greeting": "Good morning",
             "date": "Saturday, October 17",
+            "events": [{"title": "Coffee", "date": "Today", "time": "10:30"}],
         }
 ```
 
@@ -83,6 +86,37 @@ interface, then wire it into the server in `app.py` in place of
 credentials in local or deployment configuration, never in source control.
 Editing provider code requires restarting the server; editing only
 `layout.json` does not.
+
+## Google Calendar
+
+The first live integration uses a Google service account with read-only access
+to one calendar. This suits a private household server: no user sign-in or
+refresh token is stored, and Google credentials stay on the server. Create a
+Google Cloud project, enable the Google Calendar API, create a service account,
+and download its JSON key. Share the chosen calendar with the service account's
+email address and grant **See all event details** (viewer access). Do not share
+your whole Google account or add the key to Git.
+
+For Docker Compose, put the downloaded key at an ignored local path such as
+`secrets/google-calendar-service-account.json` (restrict it to your account,
+for example with `chmod 600`), set these values in `.env`, then restart the
+service:
+
+```dotenv
+SLATE_PROVIDER=google_calendar
+SLATE_GOOGLE_CREDENTIALS_DIR=./secrets
+SLATE_GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
+SLATE_TIMEZONE=Europe/Amsterdam
+SLATE_CALENDAR_MAX_EVENTS=6
+SLATE_CALENDAR_DAYS_AHEAD=14
+```
+
+Find the calendar ID in Google Calendar under **Settings → Integrate calendar**.
+Use an IANA timezone name such as `Europe/Amsterdam`; it controls displayed
+event times and the 14-day query window. All-day events display as “All day”.
+The sample provider remains the default and supplies three fictional events for
+previewing the layout without credentials. Google API failures are reported as
+a failed frame render; check server logs and the calendar sharing settings.
 
 ## Frame refresh and conditional requests
 

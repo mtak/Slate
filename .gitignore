@@ -4,6 +4,7 @@
 !.env.example
 firmware/secrets.*
 server/secrets.*
+secrets/
 
 # Firmware build outputs and local configuration
 firmware/build/

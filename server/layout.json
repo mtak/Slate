@@ -7,6 +7,7 @@
     {"type": "line", "x": 48, "y": 112, "x2": 752, "y2": 112, "width": 3},
     {"type": "text", "key": "date", "x": 48, "y": 144, "size": 28},
     {"type": "text", "key": "headline", "x": 48, "y": 232, "size": 36},
-    {"type": "text", "key": "message", "x": 48, "y": 296, "size": 28}
+    {"type": "text", "key": "message", "x": 48, "y": 296, "size": 28},
+    {"type": "events", "key": "events", "x": 400, "y": 145, "count": 6, "row_height": 48, "title_size": 22, "detail_size": 16}
   ]
 }
