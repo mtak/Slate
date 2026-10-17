@@ -34,16 +34,43 @@ messages when diagnosing a device.
 
 ## Build and flash
 
-Run the hardware-independent firmware tests locally with one command:
+Run the host-side firmware checks locally with one command:
 
 ```sh
 make test
 ```
 
-This target uses the system C++ compiler and does not require PlatformIO, an
-ESP32, an e-paper panel, network access, or credentials. It tests the frame
-format and diagnostic renderer. Pull requests run the same command in GitHub
-Actions.
+This runs the existing frame tests and a separate ASan/UBSan memory suite
+against the production frame renderer and frame-ingestion code. It uses the
+system C++ compiler and does not require PlatformIO, an ESP32, an e-paper panel,
+network access, or credentials. Leak detection is enabled where supported by
+the host sanitizer runtime. Pull requests changing anything under firmware/
+run this check in GitHub Actions.
+
+The target memory test can be compiled in CI without uploading it to hardware:
+
+```sh
+make setup
+make build-memory-test
+```
+
+This is a compile-only check. To execute the Unity memory test on a connected
+ESP32, use the test environment and select its upload and serial ports:
+
+```sh
+./.venv/bin/pio test -e slate_esp32_memory_test \
+  --upload-port /dev/ttyUSB0 --test-port /dev/ttyUSB0
+```
+
+The device test warms the ingestion path with three frames, then processes 64
+alternating full-frame updates. It reports free 8-bit heap and largest free
+8-bit block before and after the measured workload, and checks heap integrity.
+The ingestion component itself uses a 100-byte row buffer and does not allocate
+from the heap. These initial metrics are diagnostic; no byte threshold is set
+until stable measurements are collected on the target setup. They do not cover
+HTTPClient or TLS allocations because the test supplies rows through a local
+reader seam and does not make network requests. The normal GitHub-hosted CI
+builds this suite but does not run it on an ESP32.
 
 ```sh
 make build
