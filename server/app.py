@@ -2,7 +2,9 @@
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from frame import CONTENT_TYPE, FRAME_SIZE, sample_frame, validate_frame
+from frame import CONTENT_TYPE, FRAME_SIZE, validate_frame
+from providers import SampleProvider
+from renderer import DEFAULT_LAYOUT_PATH, Renderer
 
 FRAME_PATH = "/api/frame/v1"
 PREVIEW_PATH = "/preview"
@@ -25,7 +27,12 @@ fetch('/api/frame/v1').then(r=>{if(!r.ok)throw Error('Frame request failed: '+r.
 </script></html>"""
 
 
-def create_handler(frame_provider=sample_frame):
+def create_handler(frame_provider=None):
+    if frame_provider is None:
+        renderer = Renderer.from_file(DEFAULT_LAYOUT_PATH)
+        provider = SampleProvider()
+        frame_provider = lambda: renderer.render(provider.get_data())
+
     class SlateHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == PREVIEW_PATH:
@@ -57,7 +64,7 @@ def create_handler(frame_provider=sample_frame):
     return SlateHandler
 
 
-def create_server(frame_provider=sample_frame, host="127.0.0.1", port=8000):
+def create_server(frame_provider=None, host="127.0.0.1", port=8000):
     return ThreadingHTTPServer((host, port), create_handler(frame_provider))
 
 
