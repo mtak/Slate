@@ -55,31 +55,46 @@ class CurrentDateProvider:
 
 
 class LiteralTextProvider:
-    """Load user-authored string values from a local JSON configuration file."""
+    """Provide one user-authored string under the layout key assigned to it."""
 
-    def __init__(self, path: str | Path):
-        self.path = Path(path)
+    def __init__(self, key: str, text: str):
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("literal text provider key must be a non-empty string")
+        if not isinstance(text, str):
+            raise ValueError("literal text provider content must be a string")
+        self.key = key
+        self.text = text
 
     def get_data(self) -> dict[str, str]:
-        try:
-            with self.path.open(encoding="utf-8") as config_file:
-                values = json.load(config_file)
-        except FileNotFoundError:
-            raise ValueError(f"literal text configuration file does not exist: {self.path}") from None
-        except (OSError, UnicodeError) as error:
-            raise ValueError(f"cannot read literal text configuration file {self.path}: {error}") from None
-        except json.JSONDecodeError as error:
-            raise ValueError(
-                f"literal text configuration file {self.path} is not valid JSON: {error.msg} at line {error.lineno}"
-            ) from None
+        return {self.key: self.text}
 
-        if not isinstance(values, dict):
-            raise ValueError(f"literal text configuration file {self.path} must contain a JSON object")
-        if any(not isinstance(key, str) or not key.strip() for key in values):
-            raise ValueError(f"literal text configuration file {self.path} must use non-empty keys")
-        if any(not isinstance(value, str) for value in values.values()):
-            raise ValueError(f"literal text configuration file {self.path} must contain only string values")
-        return values
+
+def literal_text_providers_from_environment() -> list[LiteralTextProvider]:
+    """Create one provider instance per named text in the configured JSON file."""
+    path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
+    if not path:
+        return []
+
+    config_path = Path(path)
+    try:
+        with config_path.open(encoding="utf-8") as config_file:
+            values = json.load(config_file)
+    except FileNotFoundError:
+        raise ValueError(f"literal text configuration file does not exist: {config_path}") from None
+    except (OSError, UnicodeError) as error:
+        raise ValueError(f"cannot read literal text configuration file {config_path}: {error}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"literal text configuration file {config_path} is not valid JSON: {error.msg} at line {error.lineno}"
+        ) from None
+
+    if not isinstance(values, dict):
+        raise ValueError(f"literal text configuration file {config_path} must contain a JSON object")
+    if any(not isinstance(key, str) or not key.strip() for key in values):
+        raise ValueError(f"literal text configuration file {config_path} must use non-empty keys")
+    if any(not isinstance(value, str) for value in values.values()):
+        raise ValueError(f"literal text configuration file {config_path} must contain only string values")
+    return [LiteralTextProvider(key, text) for key, text in values.items()]
 
 
 class DailyAffirmationProvider:
@@ -185,9 +200,3 @@ def provider_from_environment():
     max_events = int(os.environ.get("SLATE_CALENDAR_MAX_EVENTS", "6"))
     days_ahead = int(os.environ.get("SLATE_CALENDAR_DAYS_AHEAD", "14"))
     return ICalendarProvider(url, timezone, max_events, days_ahead)
-
-
-def literal_text_provider_from_environment():
-    """Enable literal text only when its local config path is explicitly set."""
-    path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
-    return LiteralTextProvider(path) if path else None

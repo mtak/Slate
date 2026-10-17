@@ -13,7 +13,7 @@ from providers import (
     CurrentDateProvider,
     DailyAffirmationProvider,
     DEFAULT_DATE_FORMAT,
-    literal_text_provider_from_environment,
+    literal_text_providers_from_environment,
     provider_from_environment,
 )
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
@@ -93,14 +93,14 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
     if frame_provider is None:
         layout_path = os.environ.get("SLATE_LAYOUT_PATH", str(DEFAULT_LAYOUT_PATH))
         layout_file = os.path.abspath(layout_path)
-        literal_text_provider = literal_text_provider_from_environment()
+        literal_text_path = os.environ.get("SLATE_LITERAL_TEXT_FILE")
 
         def layout_file_signature():
             stat = os.stat(layout_file)
             literal_signature = None
-            if literal_text_provider is not None:
+            if literal_text_path:
                 try:
-                    literal_stat = literal_text_provider.path.stat()
+                    literal_stat = os.stat(literal_text_path)
                     literal_signature = (
                         literal_stat.st_mtime_ns, literal_stat.st_ctime_ns, literal_stat.st_size
                     )
@@ -116,7 +116,7 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
             data = provider.get_data()
             data.update(date_provider.get_data())
             data.update(affirmation_provider.get_data())
-            if literal_text_provider is not None:
+            for literal_text_provider in literal_text_providers_from_environment():
                 literal_text = literal_text_provider.get_data()
                 conflicts = data.keys() & literal_text.keys()
                 if conflicts:

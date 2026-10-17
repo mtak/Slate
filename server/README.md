@@ -84,8 +84,9 @@ error, so keep the layout keys and provider keys in sync.
 
 To provide your own static text, configure the optional literal text provider
 with `SLATE_LITERAL_TEXT_FILE`. It loads a local JSON object of named strings;
-the file is reread when rendering, and updates cause a new frame. Keep the
-actual file out of Git. See the [literal text provider guide](../docs/providers/literal-text.md)
+each entry creates one provider instance for one text value. The file is
+reread when rendering, and updates cause a new frame. Keep the actual file out
+of Git. See the [literal text provider guide](../docs/providers/literal-text.md)
 for setup, styling examples, and a demo layout.
 
 The server also adds values from `CurrentDateProvider`: `date`, `weekday`,
