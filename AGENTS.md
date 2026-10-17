@@ -34,6 +34,8 @@ before committing.
 
 ## Validation
 
+- Start local test and demo servers on port `18000 + issue number` to avoid
+  collisions between tasks (for example, issue #40 uses port `18040`).
 - Use Playwright MCP for browser interactions when validating local web previews;
   capture a screenshot when a visual artifact helps review the result.
 - Firmware changes should at least compile; hardware/display changes should be
