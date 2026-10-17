@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <esp_task_wdt.h>
 
 #include "frame.h"
@@ -33,6 +35,43 @@ constexpr bool kWifiConfigured = true;
 #else
 constexpr bool kWifiConfigured = false;
 #endif
+
+bool fetchFrame() {
+#if !defined(SLATE_SERVER_BASE_URL) || !defined(SLATE_DEVICE_TOKEN)
+  Serial.println("Frame endpoint is not configured");
+  return false;
+#else
+  const String baseUrl = SLATE_SERVER_BASE_URL;
+  if (!baseUrl.startsWith("https://") || SLATE_DEVICE_TOKEN[0] == '\0') {
+    Serial.println("Frame endpoint must use HTTPS and a device token");
+    return false;
+  }
+  WiFiClientSecure client;
+#if !defined(SLATE_TLS_VERIFY) || SLATE_TLS_VERIFY
+  client.setCACert(SLATE_ROOT_CA);
+#else
+  client.setInsecure();
+#endif
+  HTTPClient request;
+  const String url = baseUrl + "/api/frame/v1";
+  if (!request.begin(client, url)) {
+    Serial.println("Could not start frame request");
+    return false;
+  }
+  request.addHeader("Authorization", String("Bearer ") + SLATE_DEVICE_TOKEN);
+  const int status = request.GET();
+  bool ok = false;
+  if (status == HTTP_CODE_OK && request.getSize() == slate::kFrameSize) {
+    WiFiClient *stream = request.getStreamPtr();
+    const size_t count = stream->readBytes(frame, slate::kFrameSize);
+    ok = count == slate::kFrameSize;
+  }
+  request.end();
+  if (ok) Serial.println("Frame downloaded over HTTPS");
+  else Serial.printf("Frame request failed (HTTP %d or invalid frame size)\n", status);
+  return ok;
+#endif
+}
 
 void feedWatchdog() { esp_task_wdt_reset(); }
 
@@ -126,6 +165,7 @@ void setup() {
 
   connectToWifi();
   feedWatchdog();
+  const bool haveFrame = WiFi.status() == WL_CONNECTED && fetchFrame();
 
   DEV_Module_Init();
   if (!initializePanel()) {
@@ -134,7 +174,15 @@ void setup() {
     return;
   }
 
-  showDiagnosticFrame();
+  if (haveFrame) {
+#if defined(SLATE_EPD_PROFILE_V2_OLD)
+    EPD_7IN5_V2_Display_old(frame);
+#else
+    EPD_7IN5_V2_Display(frame);
+#endif
+  } else {
+    showDiagnosticFrame();
+  }
   if (slateEpdBusyTimeout) {
     Serial.println("Panel refresh timed out");
     DEV_Module_Exit();

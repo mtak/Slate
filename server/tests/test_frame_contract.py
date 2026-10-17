@@ -16,6 +16,8 @@ from frame import (
 from providers import SampleProvider
 from renderer import Renderer
 
+DEVICE_TOKEN = "test-only-device-token"
+
 
 class FrameContractTests(unittest.TestCase):
     def test_sample_frame_round_trips_as_48k_raw_bytes(self):
@@ -44,12 +46,12 @@ class FrameContractTests(unittest.TestCase):
 
     def test_v1_endpoint_returns_exact_frame_and_preview_page(self):
         frame = sample_frame()
-        server = create_server(lambda: frame, port=0)
+        server = create_server(lambda: frame, port=0, device_token=DEVICE_TOKEN)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         base = f"http://127.0.0.1:{server.server_address[1]}"
         try:
-            with urlopen(base + FRAME_PATH) as response:
+            with urlopen(Request(base + FRAME_PATH, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
                 self.assertEqual(response.headers.get_content_type(), CONTENT_TYPE)
                 self.assertEqual(response.read(), frame)
             with urlopen(base + PREVIEW_PATH) as response:
@@ -64,11 +66,12 @@ class FrameContractTests(unittest.TestCase):
 
     def test_default_endpoint_serves_layout_rendered_frame(self):
         expected = Renderer.from_file().render(SampleProvider().get_data())
-        server = create_server(port=0)
+        server = create_server(port=0, device_token=DEVICE_TOKEN)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with urlopen(f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}") as response:
+            url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
+            with urlopen(Request(url, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
                 self.assertEqual(response.read(), expected)
         finally:
             server.shutdown()
@@ -77,19 +80,53 @@ class FrameContractTests(unittest.TestCase):
 
     def test_conditional_request_uses_stable_etag_and_returns_304(self):
         frame = sample_frame()
-        server = create_server(lambda: frame, port=0)
+        server = create_server(lambda: frame, port=0, device_token=DEVICE_TOKEN)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
         try:
-            with urlopen(url) as response:
+            with urlopen(Request(url, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
                 etag = response.headers["ETag"]
                 self.assertEqual(len(response.read()), FRAME_SIZE)
-            request = Request(url, headers={"If-None-Match": etag})
+            request = Request(url, headers={"If-None-Match": etag, "Authorization": "Bearer " + DEVICE_TOKEN})
             with self.assertRaises(HTTPError) as error:
                 urlopen(request)
             self.assertEqual(error.exception.code, 304)
             self.assertEqual(error.exception.headers["ETag"], etag)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_frame_endpoint_rejects_missing_or_invalid_device_token(self):
+        server = create_server(lambda: sample_frame(), port=0, device_token=DEVICE_TOKEN)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
+        try:
+            for headers in ({}, {"Authorization": "Bearer wrong-token"}):
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(Request(url, headers=headers))
+                self.assertEqual(error.exception.code, 401)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_https_can_be_required_behind_a_tls_terminating_proxy(self):
+        server = create_server(lambda: sample_frame(), port=0,
+                               device_token=DEVICE_TOKEN, require_https=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
+        try:
+            headers = {"Authorization": "Bearer " + DEVICE_TOKEN}
+            with self.assertRaises(HTTPError) as error:
+                urlopen(Request(url, headers=headers))
+            self.assertEqual(error.exception.code, 400)
+            headers["X-Forwarded-Proto"] = "https"
+            with urlopen(Request(url, headers=headers)) as response:
+                self.assertEqual(len(response.read()), FRAME_SIZE)
         finally:
             server.shutdown()
             server.server_close()

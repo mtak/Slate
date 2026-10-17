@@ -1,0 +1,4 @@
+services:
+  slate-server:
+    ports:
+      - "${SLATE_PORT:-8000}:8000"

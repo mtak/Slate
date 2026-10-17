@@ -2,11 +2,13 @@ services:
   slate-server:
     build:
       context: ./server
-    ports:
-      - "${SLATE_PORT:-8000}:8000"
+    expose:
+      - "8000"
     environment:
       SLATE_HOST: 0.0.0.0
       SLATE_REFRESH_SECONDS: ${SLATE_REFRESH_SECONDS:-60}
+      SLATE_DEVICE_TOKEN: ${SLATE_DEVICE_TOKEN:?Set SLATE_DEVICE_TOKEN in .env}
+      SLATE_REQUIRE_HTTPS: ${SLATE_REQUIRE_HTTPS:-true}
       SLATE_LAYOUT_PATH: /config/layout.json
     volumes:
       - ./server:/config:ro
