@@ -87,9 +87,11 @@ The `partial_diff_diag` environments exercise the same in-place row comparison
 and strided partial-window sender used by the frame client. They display a
 baseline, change two separated 24×16 black marks, compute the 104×16 bounding
 window between them, then pause on the resulting image for visual inspection.
-The serial log reports the detected bounds and busy timeout status. The panel
-remains on the test image until reset or another firmware is flashed; after
-inspection, run a full refresh to clear residual ghosting.
+Before the partial update, they print an `ARMED` message and wait for the host
+to send `g`, so the operator can prepare to watch. The serial log reports the
+detected bounds and busy timeout status. The panel remains on the test image
+until reset or another firmware is flashed; after inspection, run a full
+refresh to clear residual ghosting.
 Panel profile selection and attached-device results are tracked in
 [hardware notes](../docs/hardware.md).
 

@@ -60,6 +60,19 @@ void makeIncomingRow(uint16_t y, uint8_t *row) {
   }
 }
 
+void waitForUserTrigger() {
+  Serial.println("ARMED: baseline is ready. Waiting for host trigger 'g'.");
+  Serial.println("No partial refresh will run until that trigger arrives.");
+  Serial.flush();
+  while (true) {
+    while (Serial.available() > 0) {
+      const char input = static_cast<char>(Serial.read());
+      if (input == 'g' || input == 'G') return;
+    }
+    delay(20);
+  }
+}
+
 bool runDiagnostic() {
 #if defined(SLATE_EPD_PROFILE_V2_OLD)
   Serial.println("Local changed-region diagnostic: 7.5V2_old");
@@ -91,6 +104,8 @@ bool runDiagnostic() {
     return false;
   }
   delay(1500);
+
+  waitForUserTrigger();
 
   slate::FrameDiff diff;
   uint8_t incomingRow[slate::kBytesPerRow];
@@ -126,7 +141,7 @@ bool runDiagnostic() {
     return false;
   }
   DEV_Module_Exit();
-  Serial.println("READY: inspect the two black bars at x=80 and x=160, y=286.");
+  Serial.println("DONE: inspect the two black bars at x=80 and x=160, y=286.");
   Serial.println("Expected changed window: x=80 y=286 w=104 h=16; image is paused here.");
   return true;
 }

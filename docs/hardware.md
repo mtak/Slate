@@ -100,9 +100,11 @@ A local changed-region diagnostic then displayed the static baseline, compared
 incoming rows in place, and sent the detected window through the same strided
 partial-transfer routine as the frame client. The firmware reported the
 expected 104×16 window at x=80, y=286, and completed without a busy timeout.
-The user observed two separate black bars at those positions on the panel.
-This confirms the local diff and partial window update produced the intended
-visible marks. The pre-test firmware image was restored afterward.
+The user observed two separate black bars at those positions on the panel and
+reported that the smaller region flashed a couple of times, only within that
+region. This confirms the local diff and strided partial update produced the
+intended visible marks and confined the observed activity to its computed
+window. The pre-test firmware image was restored afterward.
 
 This result differs from Waveshare's [7.5-inch HAT manual](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual),
 which says a full refresh flashes several times to clear afterimages and a
