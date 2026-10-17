@@ -87,7 +87,7 @@ credentials in local or deployment configuration, never in source control.
 Editing provider code requires restarting the server; editing only
 `layout.json` does not.
 
-## Google Calendar
+## Google Calendar iCal feed
 
 For the simplest setup, use Google's secret iCal address as a private feed
 URL. Anyone who obtains that URL can read the calendar, so do not send it in
@@ -109,37 +109,11 @@ its URL is never written to server logs. The provider expands recurring events
 and converts event times to the configured IANA timezone. `.env` is ignored by
 Git; never insert the real URL into `.env.example` or share it in support logs.
 
-If you prefer not to use a bearer URL, the service-account setup below provides
-read-only Google API access limited by sharing to a specific calendar.
-
-The first live integration uses a Google service account with read-only access
-to one calendar. This suits a private household server: no user sign-in or
-refresh token is stored, and Google credentials stay on the server. Create a
-Google Cloud project, enable the Google Calendar API, create a service account,
-and download its JSON key. Share the chosen calendar with the service account's
-email address and grant **See all event details** (viewer access). Do not share
-your whole Google account or add the key to Git.
-
-For Docker Compose, put the downloaded key at an ignored local path such as
-`secrets/google-calendar-service-account.json` (restrict it to your account,
-for example with `chmod 600`), set these values in `.env`, then restart the
-service:
-
-```dotenv
-SLATE_PROVIDER=google_calendar
-SLATE_GOOGLE_CREDENTIALS_DIR=./secrets
-SLATE_GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
-SLATE_TIMEZONE=Europe/Amsterdam
-SLATE_CALENDAR_MAX_EVENTS=6
-SLATE_CALENDAR_DAYS_AHEAD=14
-```
-
-Find the calendar ID in Google Calendar under **Settings → Integrate calendar**.
 Use an IANA timezone name such as `Europe/Amsterdam`; it controls displayed
 event times and the 14-day query window. All-day events display as “All day”.
 The sample provider remains the default and supplies three fictional events for
-previewing the layout without credentials. Google API failures are reported as
-a failed frame render; check server logs and the calendar sharing settings.
+previewing the layout without credentials. Feed failures are reported as a
+failed frame render without logging the private URL.
 
 ## Frame refresh and conditional requests
 

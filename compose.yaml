@@ -12,12 +12,9 @@ services:
       SLATE_LAYOUT_PATH: /config/layout.json
       SLATE_PROVIDER: ${SLATE_PROVIDER:-sample}
       SLATE_ICAL_URL: ${SLATE_ICAL_URL:-}
-      SLATE_GOOGLE_CREDENTIALS: /run/secrets/google-calendar-service-account.json
-      SLATE_GOOGLE_CALENDAR_ID: ${SLATE_GOOGLE_CALENDAR_ID:-}
       SLATE_TIMEZONE: ${SLATE_TIMEZONE:-UTC}
       SLATE_CALENDAR_MAX_EVENTS: ${SLATE_CALENDAR_MAX_EVENTS:-6}
       SLATE_CALENDAR_DAYS_AHEAD: ${SLATE_CALENDAR_DAYS_AHEAD:-14}
     volumes:
       - ./server:/config:ro
-      - ${SLATE_GOOGLE_CREDENTIALS_DIR:-./secrets}:/run/secrets:ro
     restart: unless-stopped
