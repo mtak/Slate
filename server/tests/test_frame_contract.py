@@ -1,6 +1,7 @@
 import threading
 import unittest
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 from app import FRAME_PATH, PREVIEW_PATH, create_server
 from frame import (
@@ -69,6 +70,26 @@ class FrameContractTests(unittest.TestCase):
         try:
             with urlopen(f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}") as response:
                 self.assertEqual(response.read(), expected)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_conditional_request_uses_stable_etag_and_returns_304(self):
+        frame = sample_frame()
+        server = create_server(lambda: frame, port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
+        try:
+            with urlopen(url) as response:
+                etag = response.headers["ETag"]
+                self.assertEqual(len(response.read()), FRAME_SIZE)
+            request = Request(url, headers={"If-None-Match": etag})
+            with self.assertRaises(HTTPError) as error:
+                urlopen(request)
+            self.assertEqual(error.exception.code, 304)
+            self.assertEqual(error.exception.headers["ETag"], etag)
         finally:
             server.shutdown()
             server.server_close()

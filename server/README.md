@@ -21,8 +21,25 @@ python3 app.py
 ```
 
 Open <http://127.0.0.1:8000/preview> to inspect the sample. The raw frame is
-available at <http://127.0.0.1:8000/api/frame/v1>. The frame is rendered from
-the sample provider and editable layout each time it is requested.
+available at <http://127.0.0.1:8000/api/frame/v1>. The server caches the frame
+for `SLATE_REFRESH_SECONDS` (default 60), then renders it again on the next
+request. Frame responses include a strong SHA-256 ETag; send it as
+`If-None-Match` to receive `304 Not Modified` while the frame is unchanged.
+
+## Docker Compose
+
+From the repository root, start the service with:
+
+```sh
+cp .env.example .env
+docker compose up --build
+```
+
+Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
+`SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
+`server/layout.json` into the container, so layout edits remain on the host and
+are used on the next container start. The sample layout and provider contain no
+household-specific data.
 
 To add a data source, implement the small `Provider` interface in
 `providers.py`; keep service credentials in local or deployment configuration.
