@@ -5,6 +5,10 @@ framework through PlatformIO. The PlatformIO CLI is pinned in
 `requirements.txt`; the Espressif32 platform (including its framework and
 compiler toolchain) is pinned in `platformio.ini`.
 
+For the clean-checkout setup through physical display verification, follow the
+[setup and commissioning guide](../docs/getting-started.md). This page keeps the
+firmware-specific commands and configuration details.
+
 ## Setup
 
 From this directory, run:
@@ -59,10 +63,12 @@ pinned PlatformIO CLI. The first build downloads the pinned ESP32 platform and
 toolchain into `.platformio/`; build outputs go into `.pio/`. Both directories
 are ignored by Git.
 
-The default `slate_esp32` environment runs the frame client with Waveshare's
-`7.5V2` profile; `slate_esp32_v2_old` selects `7.5V2_old`. Both panel profiles
-use the same 800×480 frame contract and busy-signal timeout. The initial frame
-is a full refresh, followed by the configured partial/full cadence.
+The firmware displays the authenticated frame from the configured server. The
+default `slate_esp32` environment uses Waveshare's `7.5V2` profile. The
+`slate_esp32_v2_old` environment selects `7.5V2_old`, a tested alternative for
+the documented panel. Both profiles use the same 800×480 frame contract and
+busy-signal timeout. The first update is a full refresh, followed by the
+configured partial/full cadence.
 
 Build both frame-client profiles and the panel diagnostic profiles:
 
@@ -92,7 +98,9 @@ to send `g`, so the operator can prepare to watch. The serial log reports the
 detected bounds and busy timeout status. The panel remains on the test image
 until reset or another firmware is flashed; after inspection, run a full
 refresh to clear residual ghosting.
-Panel profile selection and attached-device results are tracked in
+
+Each profile has its own panel initialization and partial-refresh sequence.
+Panel profile selection and hardware validation are recorded in
 [hardware notes](../docs/hardware.md).
 
 The device requests the authenticated v1 frame immediately at startup and then
@@ -126,3 +134,6 @@ config file.
 
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.
+
+For network, certificate, frame, and display symptoms, see the
+[troubleshooting guide](../docs/troubleshooting.md).

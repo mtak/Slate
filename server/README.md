@@ -3,7 +3,8 @@
 The server combines data providers with an editable layout, renders an 800×480
 1-bit monochrome frame, and serves it to the ESP32. The browser preview shows
 the same frame that the device receives. The version 1 byte format is described
-in the [image contract](../docs/architecture.md#image-contract).
+in the [image contract](../docs/architecture.md#image-contract). For the
+end-to-end setup sequence, see [setup and commissioning](../docs/getting-started.md).
 
 ## Run locally
 
@@ -126,18 +127,16 @@ The server checks `layout.json` on each frame request, and the preview polls
 every five seconds. The sample layout and provider contain no
 household-specific data.
 
-### Production TLS with Traefik
+### Production deployment
 
-Set `SLATE_REQUIRE_HTTPS=true` in the server environment. Terminate TLS in
-Traefik and configure it to overwrite `X-Forwarded-Proto` with the external
-scheme. The production `compose.yaml` does not publish the app port; attach the
-Traefik container to the Compose network and route to `slate-server:8000` so
-clients cannot bypass Traefik. The development override publishes the port for
-local preview only. The server trusts this header only because that network
-boundary is controlled. The ESP32 uses an `https://` base URL and validates the
-certificate with `SLATE_ROOT_CA` from its ignored local config. Set
-`SLATE_TLS_VERIFY=false` only for local testing with a self-signed certificate;
-do not use that setting in production.
+The included Compose files support local development. A deployment that serves
+a physical device must expose an HTTPS endpoint, keep the application port
+behind its trusted network boundary, and configure the ESP32 to validate the
+endpoint certificate. If `SLATE_REQUIRE_HTTPS=true`, the TLS proxy must send a
+correct forwarded scheme value, and the application must only trust that value
+from the controlled proxy network. Configure proxy routing, secret storage, and
+network exposure in the deployment environment's private operations guide.
+Never disable ESP32 certificate validation for a deployed device.
 
 This is intended to be a public repository; follow the [public repository
 hygiene notes](../docs/architecture.md#public-repository-hygiene). Secrets

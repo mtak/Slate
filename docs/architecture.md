@@ -27,8 +27,7 @@ the initial renderer supports text, lines, and outlined rectangles. Pillow
 converts the result to the v1 raw frame bytes.
 
 The ESP32 owns Wi-Fi connectivity, authenticated image retrieval, change
-detection, and panel driving. It should hold no calendar or home automation
-credentials. A hardware watchdog should recover from a stalled firmware task.
+detection, and panel driving. It holds no provider credentials.
 
 ## Public repository hygiene
 
@@ -72,9 +71,10 @@ in a URL. Keep the token in deployment configuration, out of source control,
 and avoid logging it. One device token is sufficient for the initial deployment;
 rotation and multiple devices can be added if needed.
 The server requires a Bearer token and supports `SLATE_REQUIRE_HTTPS` to reject
-device requests that do not arrive with `X-Forwarded-Proto: https` from the
-trusted TLS proxy. In the Traefik deployment, keep the app port private and
-route to it over the Compose network.
+device requests that do not arrive with `X-Forwarded-Proto: https` from a
+trusted TLS proxy. Deployment-specific proxy and network configuration belongs
+in the deployment environment's private documentation. Keep the application
+port reachable only from the trusted proxy when using forwarded scheme data.
 
 ## Refresh behavior
 
@@ -104,16 +104,12 @@ if the server output changes frequently. On boot, fetch and display the current
 frame. On network failure, keep the existing image and retry with a bounded
 backoff.
 
-## Deployment
+## Deployment boundary
 
-Docker Compose runs the renderer/API as one service initially. It bind-mounts
-the host's `server/` directory read-only, so layout edits persist outside the
-image and atomic file saves are visible inside the container. The service
-detects layout edits on frame requests. `/preview` polls every five seconds and
-redraws when the ETag changes. `.env` can set `SLATE_REFRESH_SECONDS`,
-`SLATE_DEVICE_TOKEN`, and `SLATE_REQUIRE_HTTPS` and is kept local. The base
-Compose file does not publish the app port; Traefik can reach `slate-server:8000`
-on the Compose network. For a local demo only, `compose.dev.yaml` publishes the
-port and `.env` can set `SLATE_PORT`. The built-in server uses plain HTTP behind
-the TLS-terminating proxy; the device connects to the proxy's HTTPS endpoint
-and validates its certificate.
+The server application listens on HTTP. A deployment that serves a physical
+device must provide HTTPS on the device-facing endpoint, configure the server
+to require HTTPS when appropriate, and ensure the ESP32 validates the endpoint
+certificate. The proxy must provide a trustworthy forwarded scheme value if
+HTTPS enforcement is enabled. The repository's Compose files support local
+development; production routing, storage of secrets, and network exposure are
+deployment-specific.
