@@ -23,6 +23,8 @@ python3 app.py
 Open <http://127.0.0.1:8000/preview> to inspect the sample. The raw frame is
 available at <http://127.0.0.1:8000/api/frame/v1>.
 
+![Browser preview of the version 1 sample frame](../docs/frame-preview.png)
+
 This is intended to be a public repository; follow the [public repository
 hygiene notes](../docs/architecture.md#public-repository-hygiene). Secrets
 belong in deployment configuration outside source control. Providers must

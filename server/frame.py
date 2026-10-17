@@ -29,18 +29,20 @@ def pixel_is_black(frame: bytes, x: int, y: int) -> bool:
 
 
 def sample_frame() -> bytes:
-    """Build a small asymmetric orientation test pattern in a white frame."""
+    """Build a visible asymmetric orientation test pattern in a white frame."""
     frame = bytearray([0xFF]) * FRAME_SIZE
-    # Distinct marks at all four corners, plus a black top-left to anchor origin.
-    corners = ((0, 0), (WIDTH - 1, 0), (0, HEIGHT - 1), (WIDTH - 1, HEIGHT - 1))
+
+    def black_rect(x: int, y: int, width: int, height: int) -> None:
+        for row in range(y, y + height):
+            for column in range(x, x + width):
+                offset = row * BYTES_PER_ROW + column // 8
+                frame[offset] &= ~(0x80 >> (column & 7))
+
+    # Large corner marks plus an offset L make rotation and mirroring obvious.
+    corners = ((16, 16), (WIDTH - 48, 16), (16, HEIGHT - 48),
+               (WIDTH - 48, HEIGHT - 48))
     for x, y in corners:
-        offset = y * BYTES_PER_ROW + x // 8
-        frame[offset] &= ~(0x80 >> (x & 7))
-    # Add an L near the upper-left so the preview makes row and bit direction clear.
-    for x in range(1, 25):
-        offset = x // 8
-        frame[offset] &= ~(0x80 >> (x & 7))
-    for y in range(1, 25):
-        offset = y * BYTES_PER_ROW
-        frame[offset] &= 0x7F
+        black_rect(x, y, 32, 32)
+    black_rect(80, 80, 160, 12)
+    black_rect(80, 80, 12, 160)
     return bytes(frame)
