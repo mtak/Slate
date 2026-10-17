@@ -1,4 +1,5 @@
 #include "frame.h"
+#include "frame_diff.h"
 #include "refresh_policy.h"
 #include "wifi_retry.h"
 
@@ -110,6 +111,43 @@ void testRefreshPolicyUsesConfiguredPartialCount() {
   expect(slate::chooseRefreshMode(true, 0, 0) == RefreshMode::Full,
          "a configured count of zero disables partial refreshes");
 }
+
+void testFrameDiffBuildsByteAlignedChangedBounds() {
+  slate::FrameDiff diff;
+  expect(!diff.region().changed, "unchanged frame has no changed region");
+  diff.record(12, 30);
+  diff.record(15, 27);
+  diff.record(4, 33);
+  const slate::ChangedRegion region = diff.region();
+  expect(region.changed, "changed bytes produce a region");
+  expect(region.x == 32 && region.y == 27,
+         "region starts at the first changed byte and row");
+  expect(region.width == 96 && region.height == 7,
+         "region covers changed byte and row bounds");
+}
+
+void testFrameDiffComparesAndReplacesRowsInPlace() {
+  uint8_t frame[slate::kFrameSize];
+  uint8_t incoming[slate::kBytesPerRow];
+  slate::clearFrame(frame);
+  slate::FrameDiff diff;
+
+  memset(incoming, 0xFF, sizeof(incoming));
+  incoming[3] = 0xF0;
+  diff.compareAndReplaceRow(frame, 14, incoming);
+  expect(frame[14 * slate::kBytesPerRow + 3] == 0xF0,
+         "incoming row replaces its old bytes in place");
+
+  memset(incoming, 0xFF, sizeof(incoming));
+  incoming[7] = 0x0F;
+  diff.compareAndReplaceRow(frame, 16, incoming);
+  const slate::ChangedRegion region = diff.region();
+  expect(region.changed && region.x == 24 && region.y == 14 &&
+             region.width == 40 && region.height == 3,
+         "row comparisons accumulate bounds across separated changes");
+  expect(frame[16 * slate::kBytesPerRow + 7] == 0x0F,
+         "later incoming row also replaces its old bytes");
+}
 }  // namespace
 
 int main() {
@@ -118,6 +156,8 @@ int main() {
   testDiagnosticFrameIsDeterministicAndDistinguishesProfiles();
   testWifiRetryBackoffIsBounded();
   testRefreshPolicyUsesConfiguredPartialCount();
+  testFrameDiffBuildsByteAlignedChangedBounds();
+  testFrameDiffComparesAndReplacesRowsInPlace();
   puts("Firmware tests passed");
   return 0;
 }

@@ -85,6 +85,18 @@ the next frame request after expiry, it renders again and derives a new ETag.
 An edit to the mounted layout file invalidates the cached frame immediately,
 so the next frame request renders the edited layout without restarting the
 container.
+
+When the firmware has a complete displayed frame and its framebuffer is known
+to match the panel, it compares a newly downloaded full frame with that buffer
+as each row arrives. It overwrites the old bytes in place and records the
+smallest changed rectangle, rounded horizontally to whole bytes (eight
+pixels). The partial panel transfer reads that rectangle using the full frame's
+100-byte row stride. This keeps the HTTP frame contract unchanged and requires
+only the existing 48,000-byte framebuffer plus one 100-byte scanline scratch
+buffer. The first update, and any update after an interrupted transfer or
+uncertain panel operation, uses a full refresh. Successful partial refreshes
+follow the configured cadence, with a full refresh after two partial updates
+by default.
 The firmware's polling cadence is a separate setting: it can poll more often
 than the server renders, using `If-None-Match` to avoid receiving duplicate
 bytes. Keep panel updates at or above the panel's minimum refresh interval even

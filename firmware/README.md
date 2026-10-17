@@ -66,18 +66,41 @@ are ignored by Git.
 The firmware displays the authenticated frame from the configured server. The
 default `slate_esp32` environment uses Waveshare's `7.5V2` profile. The
 `slate_esp32_v2_old` environment selects `7.5V2_old`, a tested alternative for
-the documented panel. To build and flash the alternate profile:
+the documented panel. Both profiles use the same 800×480 frame contract and
+busy-signal timeout. The first update is a full refresh, followed by the
+configured partial/full cadence.
+
+Build both frame-client profiles and the panel diagnostic profiles:
 
 ```sh
-make build
-make upload PORT=/dev/ttyUSB0
-make monitor PORT=/dev/ttyUSB0
+./.venv/bin/pio run -e slate_esp32
 ./.venv/bin/pio run -e slate_esp32_v2_old
-./.venv/bin/pio run -e slate_esp32_v2_old --target upload --upload-port /dev/ttyUSB0
+./.venv/bin/pio run -e slate_esp32_partial_diag
+./.venv/bin/pio run -e slate_esp32_partial_diag_v2_old
+./.venv/bin/pio run -e slate_esp32_partial_diff_diag
+./.venv/bin/pio run -e slate_esp32_partial_diff_diag_v2_old
 ```
 
+The one-shot panel diagnostic environments each perform a full-frame baseline,
+three 160×80 partial-window changes, and a final full refresh. To flash a
+diagnostic, use `pio run -e <diagnostic-env> --target upload
+--upload-port /dev/ttyUSB0`; then open the serial monitor. Close the monitor
+before uploading another build. Record the profile, visible result, and serial
+busy status. The regular `slate_esp32` and `slate_esp32_v2_old` environments
+run the configured network frame client.
+
+The `partial_diff_diag` environments exercise the same in-place row comparison
+and strided partial-window sender used by the frame client. They display a
+baseline, change two separated 24×16 black marks, compute the 104×16 bounding
+window between them, then pause on the resulting image for visual inspection.
+Before the partial update, they print an `ARMED` message and wait for the host
+to send `g`, so the operator can prepare to watch. The serial log reports the
+detected bounds and busy timeout status. The panel remains on the test image
+until reset or another firmware is flashed; after inspection, run a full
+refresh to clear residual ghosting.
+
 Each profile has its own panel initialization and partial-refresh sequence.
-Panel profile selection and hardware validation are recorded in the
+Panel profile selection and hardware validation are recorded in
 [hardware notes](../docs/hardware.md).
 
 The device requests the authenticated v1 frame immediately at startup and then
@@ -88,18 +111,27 @@ many partial updates occur between full refreshes. The first displayed frame
 is always a full refresh; then the firmware performs the configured number of
 partial refreshes before each full refresh. Set it to `0` to disable partial
 refreshes. Partial refreshes can leave ghosting, so the periodic full refresh
-clears residual images. Their visible behavior depends on panel revision; on
-the attached V2 panel, partial and full updates still flashed similarly.
+clears residual images. The server always returns the complete 48,000-byte
+frame. During a partial update, firmware reads the new image one 100-byte row
+at a time, compares each incoming byte with the existing framebuffer, and
+overwrites it in place. It tracks the smallest rectangle containing all
+changed bytes; its horizontal edges align to byte boundaries (eight pixels).
+The partial display transfer reads rows from the full-frame stride, so no crop
+buffer or second framebuffer is needed. Only the one 48,000-byte framebuffer
+and a 100-byte scanline scratch buffer are used.
 
-The client validates the media type, v1 format version, 800×480 dimensions, and
-48,000-byte payload before it can replace the displayed frame. It sends the
-server ETag on later polls, skips 304 responses and identical payloads, and
-keeps a validated pending frame until the refresh interval permits an update.
-Transient connection or response failures leave the current panel image alone;
-the next poll retries the request. The V2 and V2-old panel profiles have
-separate partial-refresh driver sequences; verify partial-refresh behavior on
-the attached panel. A physical HTTPS test requires Wi-Fi, a reachable HTTPS
-endpoint, and a valid root CA in the ignored config file.
+The client validates the frame media type and exact payload length, sends the
+latest server ETag on later polls, skips 304 responses and unchanged frames,
+and keeps a validated pending frame until the refresh interval permits an
+update. A partial comparison is used only when the framebuffer is known to
+match the displayed panel image. An interrupted download or failed panel
+operation makes the next attempt a full refresh. The panel uses the normal
+two-partials/one-full cadence. The V2 and V2-old panel profiles have separate
+partial-refresh controller sequences; verify behavior on the attached panel.
+Partial refreshes may flash within the updated window. A physical HTTPS test
+requires Wi-Fi, a reachable HTTPS endpoint, and a valid root CA in the ignored
+config file.
+
 See [public repository hygiene](../docs/architecture.md#public-repository-hygiene)
 for the project's rules on local configuration and secrets.
 
