@@ -21,8 +21,43 @@ python3 app.py
 ```
 
 Open <http://127.0.0.1:8000/preview> to inspect the sample. The raw frame is
-available at <http://127.0.0.1:8000/api/frame/v1>. The frame is rendered from
-the sample provider and editable layout each time it is requested.
+available at <http://127.0.0.1:8000/api/frame/v1>. The server caches the frame
+for `SLATE_REFRESH_SECONDS` (default 60), then renders it again on the next
+request. Frame responses include a strong SHA-256 ETag; send it as
+`If-None-Match` to receive `304 Not Modified` while the frame is unchanged.
+
+An ETag is the quoted hexadecimal SHA-256 digest of the 48,000 frame bytes.
+Save it from a `200 OK` response and send it on the next poll. For example:
+
+```sh
+curl -D headers.txt -o frame.bin http://127.0.0.1:8000/api/frame/v1
+etag=$(awk 'tolower($1) == "etag:" { print $2 }' headers.txt)
+curl -i -H "If-None-Match: $etag" http://127.0.0.1:8000/api/frame/v1
+```
+
+When the frame is unchanged, the second request returns `304 Not Modified`
+with no frame body. When it has changed, the server returns `200 OK`, the new
+ETag, and the full frame. A conditional request made after the render interval
+has expired can trigger a new render before the server compares ETags.
+
+## Docker Compose
+
+From the repository root, start the service with:
+
+```sh
+cp .env.example .env
+docker compose up --build
+```
+
+Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
+`SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
+`server/` into the container as read-only, so layout edits remain on the host
+and cannot be changed from inside the container. Mounting the directory keeps
+atomic file saves from being hidden behind a stale single-file mount. The
+server checks `layout.json` on each frame request and renders a new frame when
+it changes. The open browser preview polls every five seconds and redraws only
+when the ETag changes. The sample layout and provider contain no
+household-specific data.
 
 To add a data source, implement the small `Provider` interface in
 `providers.py`; keep service credentials in local or deployment configuration.
