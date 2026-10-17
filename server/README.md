@@ -12,11 +12,16 @@ cd server
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.txt
+export SLATE_DEVICE_TOKEN="$(openssl rand -hex 32)"
+export SLATE_REQUIRE_HTTPS=false
 python3 app.py
 ```
 
 Open <http://127.0.0.1:8000/preview> to see the sample layout. The raw frame is
-available at <http://127.0.0.1:8000/api/frame/v1>.
+available at <http://127.0.0.1:8000/api/frame/v1>. The endpoint requires
+`Authorization: Bearer <device-token>`. The preview asks for the token in a
+password field and keeps it in browser memory only. The token is never accepted
+in a URL or written to server logs.
 
 ## Edit the layout
 
@@ -86,9 +91,12 @@ SHA-256 ETag. Send it as `If-None-Match` to receive `304 Not Modified` while
 the frame is unchanged:
 
 ```sh
-curl -D headers.txt -o frame.bin http://127.0.0.1:8000/api/frame/v1
+curl -D headers.txt -o frame.bin \
+  -H "Authorization: Bearer $SLATE_DEVICE_TOKEN" \
+  http://127.0.0.1:8000/api/frame/v1
 etag=$(awk 'tolower($1) == "etag:" { print $2 }' headers.txt)
-curl -i -H "If-None-Match: $etag" http://127.0.0.1:8000/api/frame/v1
+curl -i -H "Authorization: Bearer $SLATE_DEVICE_TOKEN" \
+  -H "If-None-Match: $etag" http://127.0.0.1:8000/api/frame/v1
 ```
 
 The ETag is the quoted hexadecimal SHA-256 digest of the 48,000 frame bytes.
@@ -102,17 +110,34 @@ From the repository root, start the service with:
 
 ```sh
 cp .env.example .env
-docker compose up --build
+openssl rand -hex 32
+# Set SLATE_DEVICE_TOKEN in .env to the generated value.
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
-Then open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT` and
-`SLATE_REFRESH_SECONDS` from `.env` (defaults 8000 and 60 seconds). It mounts
+Open <http://127.0.0.1:8000/preview>. Compose reads `SLATE_PORT`,
+`SLATE_REFRESH_SECONDS`, `SLATE_DEVICE_TOKEN`, and `SLATE_REQUIRE_HTTPS` from
+`.env`. The sample sets HTTPS enforcement off for a private local demo; keep
+it on in production. It mounts
 `server/` read-only so layout edits stay on the host; the container can read
 but cannot change the layout. Mounting the whole directory also keeps atomic
 file saves visible inside the container, unlike mounting only `layout.json`.
 The server checks `layout.json` on each frame request, and the preview polls
 every five seconds. The sample layout and provider contain no
 household-specific data.
+
+### Production TLS with Traefik
+
+Set `SLATE_REQUIRE_HTTPS=true` in the server environment. Terminate TLS in
+Traefik and configure it to overwrite `X-Forwarded-Proto` with the external
+scheme. The production `compose.yaml` does not publish the app port; attach the
+Traefik container to the Compose network and route to `slate-server:8000` so
+clients cannot bypass Traefik. The development override publishes the port for
+local preview only. The server trusts this header only because that network
+boundary is controlled. The ESP32 uses an `https://` base URL and validates the
+certificate with `SLATE_ROOT_CA` from its ignored local config. Set
+`SLATE_TLS_VERIFY=false` only for local testing with a self-signed certificate;
+do not use that setting in production.
 
 This is intended to be a public repository; follow the [public repository
 hygiene notes](../docs/architecture.md#public-repository-hygiene). Secrets
