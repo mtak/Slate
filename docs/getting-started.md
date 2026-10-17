@@ -56,6 +56,31 @@ Edit `include/slate_config.h` and set:
 - `SLATE_ROOT_CA` to the PEM CA certificate that validates the server
   certificate.
 
+### Prepare the CA certificate for the firmware
+
+Get the trust CA certificate from the deployment instructions or the
+organization that manages the endpoint. For a public certificate, use the root
+CA certificate published by its certificate authority. For a private
+certificate, use the private root CA certificate supplied by the deployment
+operator. The certificate served by the endpoint is usually the device/server
+certificate, and a TLS server often does not send its root CA; do not assume
+that copying the first certificate shown by a TLS inspection command gives you
+the right trust anchor.
+
+Save the CA certificate in PEM format as `server-ca.pem`. It should contain a
+`BEGIN CERTIFICATE` line, the base64 certificate data, and an `END CERTIFICATE`
+line. From `firmware/`, convert it to the C string literal format used in
+`slate_config.h`:
+
+```sh
+awk 'BEGIN { printf "\"" } { sub(/\r$/, ""); printf "%s\\n", $0 } END { printf "\"" }' server-ca.pem
+```
+
+The output is one quoted C string with `\n` escapes. Replace the example value
+of `SLATE_ROOT_CA` with that output, keeping it on one line. If the CA file
+contains multiple certificates, use the specific CA certificate that issued
+the endpoint chain, as documented by the deployment operator.
+
 Keep this file private. It is ignored by Git. Leave `SLATE_TLS_VERIFY` enabled;
 disabling certificate checks is only for temporary local diagnosis and is not
 appropriate for a deployed display.
