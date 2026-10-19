@@ -35,13 +35,31 @@ The layout supports these block types:
 
 | Type | Required fields | Optional fields | Effect |
 | --- | --- | --- | --- |
-| `text` | `key` | `x`, `y`, `size`, `bold` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`; `bold: true` adds a bold stroke. |
-| `wrapped_text` | `key`, `max_width` | `x`, `y`, `size`, `max_lines`, `line_height` | Wrap a provider value at word boundaries within a pixel width, and clip excess lines with an ellipsis. Defaults: position `(0, 0)`, size `24`, three lines, line height `size + 6`. |
-| `line` | `x2`, `y2` | `x`, `y`, `width` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`. |
-| `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
-| `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key` | Draw a calendar icon using the `weekday`, `day`, and `month` provider values. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, font sizes `16`/`48`/`20`. |
-| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`; optional `max_width` clips text with `...` at that many pixels. |
-| `power` | — | `key`, `label`, `x`, `y`, `width`, `height` | Draw a power tile with a watt reading. Defaults: key `power_watts`, label `Power`, size `120×92`; missing or unavailable data is shown as “Unavailable”. |
+| `text` | `key` | `x`, `y`, `size`, `bold`, `font_family`, `font_weight`, `ink` | Draw the provider value named by `key`. Defaults: position `(0, 0)`, size `24`, default font, black ink. `bold` remains supported for old layouts. |
+| `wrapped_text` | `key`, `max_width` | `x`, `y`, `size`, `max_lines`, `line_height`, `font_family`, `font_weight`, `ink` | Wrap at word boundaries within a pixel width and clip excess lines with an ellipsis. Defaults: position `(0, 0)`, size `24`, three lines, line height `size + 6`. |
+| `line` | `x2`, `y2` | `x`, `y`, `width`, `ink` | Draw from `(x, y)` to `(x2, y2)`. Defaults: start `(0, 0)`, width `2`, black. |
+| `rectangle` | `width`, `height` | `x`, `y`, `stroke`, `outline`, `fill` | Draw a filled rectangle with an optional outline. Defaults: position `(0, 0)`, stroke `2`, black outline, no fill. |
+| `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `outline`, `fill`, `ink`, `divider`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key`, `font_family`, `font_weight` | Draw a calendar icon from `weekday`, `day`, and `month`. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, sizes `16`/`48`/`20`, black outline and divider. |
+| `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width`, `font_family`, `font_weight`, `ink` | Draw event titles, dates, and times. Defaults: key `events`, count `6`, row height `48`; `max_width` clips text with `...` at that pixel width. |
+| `power` | — | `key`, `label`, `x`, `y`, `width`, `height`, `label_size`, `value_size`, `stroke`, `outline`, `fill`, `ink`, `divider`, `font_family`, `font_weight` | Draw a power tile with a watt reading. Defaults: key `power_watts`, label `Power`, size `120×92`, sizes `16`/`20`; unavailable data is shown as “Unavailable”. |
+
+Text blocks accept `font_family` values `default`, `sans`, `serif`, or `mono`
+and `font_weight` values `regular` or `bold`. `default` preserves the original
+Pillow bitmap font and is the default for older layouts. The other families use
+DejaVu Sans, Serif, or Sans Mono at the requested pixel size. Install the
+`fonts-dejavu-core` package for local rendering; the Docker image includes it.
+Pillow's TrueType text metrics (`textlength` and `textbbox`) drive wrapping,
+truncation, and centering. Font sizes are 1–256 pixels; wrap widths, line
+heights, and widget dimensions are pixels. Coordinates start at the
+top-left and drawings outside the 800×480 canvas are clipped. Fonts beyond the
+listed families, intermediate weights, grayscale, and antialiasing are not
+supported.
+
+`ink`, `fill`, and `outline` accept only `black` or `white`; `fill` and
+`outline` also accept `none`. The frame is always 1-bit black and white. Use a
+black fill with white ink for an inverted panel. `divider` is a boolean and
+controls the calendar header rule or optional power-tile rule. Strokes use
+positive integer pixel widths.
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
 a 42-pixel font:
@@ -56,6 +74,16 @@ match the display and frame contract. The server notices changes to the layout
 file and renders an updated frame on the next request; the open preview polls
 every five seconds and redraws when the frame changes. When running with
 Docker Compose, edit the host copy of `server/layout.json`.
+
+`nightwave-layout.json` is a configurable 800×480 example with a house name,
+calendar, upcoming events, power in watts, and affirmation. From `server/`, run
+it with `SLATE_LAYOUT_PATH=nightwave-layout.json`,
+`SLATE_LITERAL_TEXT_FILE=nightwave-example-text.json`, and the normal server
+command. Power displays “Unavailable” until a Home Assistant power source is
+configured. The sample below uses a fictional 483 W reading. It renders through
+the same `Renderer` and 1-bit frame conversion used by the device endpoint:
+
+![Nightwave example rendered as an 800 by 480 monochrome frame](../docs/nightwave-preview.png)
 
 ![Rendered sample frame from the editable layout with a fictional power reading of 483 W](../docs/frame-preview.png)
 
