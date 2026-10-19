@@ -183,6 +183,49 @@ class RendererTests(unittest.TestCase):
         frame = Renderer(layout).render({"message": "A sample"})
         self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(90, 120) for x in range(80, 200)))
 
+    def test_named_font_and_inverted_fill_render_in_one_bit(self):
+        layout = {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "blocks": [
+                {"type": "rectangle", "x": 10, "y": 10, "width": 180, "height": 70,
+                 "fill": "black", "outline": "none"},
+                {"type": "text", "key": "message", "x": 20, "y": 24, "size": 28,
+                 "font_family": "sans", "font_weight": "bold", "ink": "white"},
+            ],
+        }
+
+        frame = Renderer(layout).render({"message": "Slate"})
+
+        self.assertTrue(pixel_is_black(frame, 185, 75))
+        self.assertTrue(any(not pixel_is_black(frame, x, y) for y in range(10, 80) for x in range(10, 190)))
+
+    def test_calendar_and_power_can_hide_outlines_and_dividers(self):
+        layout = {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "blocks": [
+                {"type": "calendar", "x": 10, "y": 10, "width": 120, "height": 120,
+                 "outline": "none", "divider": False},
+                {"type": "power", "x": 150, "y": 10, "width": 120, "height": 92,
+                 "outline": "none", "divider": False},
+            ],
+        }
+
+        frame = Renderer(layout).render({"weekday": "Saturday", "day": "17", "month": "October", "power_watts": 483})
+
+        self.assertFalse(pixel_is_black(frame, 10, 10))
+        self.assertFalse(pixel_is_black(frame, 150, 10))
+        self.assertTrue(any(pixel_is_black(frame, x, y) for y in range(10, 130) for x in range(10, 130)))
+
+    def test_unknown_font_family_is_rejected(self):
+        renderer = Renderer({
+            "width": WIDTH, "height": HEIGHT,
+            "blocks": [{"type": "text", "key": "message", "font_family": "display"}],
+        })
+        with self.assertRaisesRegex(ValueError, "font_family"):
+            renderer.render({"message": "Example"})
+
     def test_calendar_block_renders_provider_date_parts(self):
         layout = {
             "width": WIDTH,
