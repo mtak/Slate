@@ -67,6 +67,7 @@ class FrameContractTests(unittest.TestCase):
 
     def test_default_endpoint_serves_layout_rendered_frame(self):
         data = SampleProvider().get_data()
+        data.update(CurrentDateProvider().get_data())
         data.update(DailyAffirmationProvider().get_data())
         expected = Renderer.from_file().render(data)
         server = create_server(port=0, device_token=DEVICE_TOKEN)

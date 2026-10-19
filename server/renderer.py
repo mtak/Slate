@@ -83,6 +83,8 @@ class Renderer:
             draw.rectangle(bounds, outline=0, width=block.get("stroke", 2))
         elif kind == "calendar":
             Renderer._draw_calendar(draw, block, data, x, y)
+        elif kind == "power":
+            Renderer._draw_power(draw, block, data, x, y)
         elif kind == "events":
             events = data.get(block.get("key", "events"), [])
             if not isinstance(events, list):
@@ -139,6 +141,22 @@ class Renderer:
         bounds = draw.textbbox((0, 0), value, font=font)
         text_width = bounds[2] - bounds[0]
         draw.text((x + (width - text_width) // 2, y), value, font=font, fill=0)
+
+    @staticmethod
+    def _draw_power(draw: ImageDraw.ImageDraw, block: Mapping, data: Mapping[str, object], x: int, y: int) -> None:
+        width, height = block.get("width", 120), block.get("height", 92)
+        if not isinstance(width, int) or width < 80 or not isinstance(height, int) or height < 60:
+            raise ValueError("power widget width must be at least 80 and height at least 60")
+        label = block.get("label", "Power")
+        if not isinstance(label, str):
+            raise ValueError("power widget label must be a string")
+        value = data.get(block.get("key", "power_watts"))
+        draw.rectangle((x, y, x + width, y + height), outline=0, width=2)
+        label_font = ImageFont.load_default(size=16)
+        value_font = ImageFont.load_default(size=20)
+        Renderer._draw_centered_text(draw, label, label_font, x, y + 8, width)
+        reading = f"{value:,} W" if isinstance(value, int) and not isinstance(value, bool) else "Unavailable"
+        Renderer._draw_centered_text(draw, reading, value_font, x, y + 42, width)
 
     @staticmethod
     def _truncate_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> str:

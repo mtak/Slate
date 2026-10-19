@@ -13,6 +13,7 @@ from providers import (
     CurrentDateProvider,
     DailyAffirmationProvider,
     DEFAULT_DATE_FORMAT,
+    home_assistant_power_provider_from_environment,
     literal_text_providers_from_environment,
     provider_from_environment,
 )
@@ -109,11 +110,14 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
             return (stat.st_mtime_ns, stat.st_size), literal_signature
 
         provider = provider_from_environment()
+        home_assistant_power_provider = home_assistant_power_provider_from_environment()
         date_provider = CurrentDateProvider(os.environ.get("SLATE_DATE_FORMAT", DEFAULT_DATE_FORMAT))
         affirmation_provider = DailyAffirmationProvider()
 
         def render_frame():
             data = provider.get_data()
+            if home_assistant_power_provider:
+                data.update(home_assistant_power_provider.get_data())
             data.update(date_provider.get_data())
             data.update(affirmation_provider.get_data())
             for literal_text_provider in literal_text_providers_from_environment():
