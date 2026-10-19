@@ -9,7 +9,8 @@
     {"type": "text", "key": "date", "x": 48, "y": 144, "size": 28},
     {"type": "text", "key": "headline", "x": 48, "y": 232, "size": 36},
     {"type": "text", "key": "message", "x": 48, "y": 296, "size": 28},
-    {"type": "events", "key": "events", "x": 400, "y": 145, "count": 4, "row_height": 48, "title_size": 22, "detail_size": 16, "max_width": 340},
+    {"type": "events", "key": "events", "x": 400, "y": 145, "count": 4, "row_height": 48, "title_size": 22, "detail_size": 16, "max_width": 210},
+    {"type": "power", "x": 632, "y": 210, "width": 120, "height": 92},
     {"type": "text", "key": "affirmation_heading", "x": 48, "y": 354, "size": 36, "bold": true},
     {"type": "wrapped_text", "key": "affirmation", "x": 48, "y": 400, "size": 20, "max_width": 700, "max_lines": 2, "line_height": 24}
   ]

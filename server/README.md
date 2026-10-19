@@ -41,6 +41,7 @@ The layout supports these block types:
 | `rectangle` | `width`, `height` | `x`, `y`, `stroke` | Draw an outline from `(x, y)` to `(x + width, y + height)`. Defaults: position `(0, 0)`, stroke `2`. |
 | `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key` | Draw a calendar icon using the `weekday`, `day`, and `month` provider values. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, font sizes `16`/`48`/`20`. |
 | `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width` | Draw event titles, dates, and times from a provider list. Defaults: key `events`, count `6`, row height `48`; optional `max_width` clips text with `...` at that many pixels. |
+| `power` | — | `key`, `label`, `x`, `y`, `width`, `height` | Draw a power tile with a watt reading. Defaults: key `power_watts`, label `Power`, size `120×92`; missing or unavailable data is shown as “Unavailable”. |
 
 For example, this block displays the value for `greeting` at pixel `(48, 48)` in
 a 42-pixel font:
@@ -109,6 +110,11 @@ interface, then wire it into the server in `app.py` in place of
 credentials in local or deployment configuration, never in source control.
 Editing provider code requires restarting the server; editing only
 `layout.json` does not.
+
+Home Assistant power is an optional integration alongside the selected main
+provider. Configure `SLATE_HOME_ASSISTANT_URL`, `SLATE_HOME_ASSISTANT_TOKEN`,
+and `SLATE_HOME_ASSISTANT_ENTITY` together to add a `power_watts` value. See
+the [Home Assistant power guide](../docs/providers/home-assistant-power.md).
 
 ## Provider guides
 

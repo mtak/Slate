@@ -1,10 +1,12 @@
 """Small interfaces and integrations for server-side data sources."""
 
+import math
 import json
 import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Protocol
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 DEFAULT_DATE_FORMAT = "%A, %B %d"
@@ -126,6 +128,57 @@ class DailyAffirmationProvider:
             "affirmation_heading": "Listen b*tch",
             "affirmation": self.AFFIRMATIONS[day.toordinal() % len(self.AFFIRMATIONS)],
         }
+
+
+class HomeAssistantPowerProvider:
+    """Read one Home Assistant power sensor as an integer number of watts."""
+
+    def __init__(self, base_url: str, token: str, entity_id: str):
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("SLATE_HOME_ASSISTANT_URL must use HTTP or HTTPS")
+        if not token:
+            raise ValueError("SLATE_HOME_ASSISTANT_TOKEN must not be empty")
+        if not entity_id:
+            raise ValueError("SLATE_HOME_ASSISTANT_ENTITY must not be empty")
+        self.url = f"{base_url.rstrip('/')}/api/states/{quote(entity_id, safe='')}"
+        self.token = token
+
+    def get_data(self) -> dict[str, object]:
+        import requests
+
+        try:
+            response = requests.get(
+                self.url,
+                headers={"Authorization": f"Bearer {self.token}", "Accept": "application/json"},
+                timeout=10,
+                allow_redirects=False,
+            )
+            response.raise_for_status()
+            sensor = response.json()
+            state = float(sensor["state"])
+            unit = sensor.get("attributes", {}).get("unit_of_measurement")
+            if not math.isfinite(state) or unit not in ("W", "kW"):
+                raise ValueError("unsupported power sensor reading")
+            watts = round(state * (1000 if unit == "kW" else 1))
+            return {"power_watts": watts}
+        except Exception:
+            # Keep tokens, local URLs, and Home Assistant response data out of logs.
+            return {"power_watts": None}
+
+
+def home_assistant_power_provider_from_environment() -> HomeAssistantPowerProvider | None:
+    """Create the optional Home Assistant integration when all settings exist."""
+    base_url = os.environ.get("SLATE_HOME_ASSISTANT_URL")
+    token = os.environ.get("SLATE_HOME_ASSISTANT_TOKEN")
+    entity_id = os.environ.get("SLATE_HOME_ASSISTANT_ENTITY")
+    if not any((base_url, token, entity_id)):
+        return None
+    if not all((base_url, token, entity_id)):
+        raise ValueError(
+            "SLATE_HOME_ASSISTANT_URL, SLATE_HOME_ASSISTANT_TOKEN, and "
+            "SLATE_HOME_ASSISTANT_ENTITY must be configured together"
+        )
+    return HomeAssistantPowerProvider(base_url, token, entity_id)
 
 
 def _calendar_data(events: list[dict[str, str]], timezone: ZoneInfo) -> dict[str, object]:
