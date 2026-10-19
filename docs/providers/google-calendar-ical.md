@@ -37,12 +37,15 @@ SLATE_CALENDAR_ICAL_URL=<secret-https-ical-address>
 TZ=Europe/Amsterdam
 SLATE_CALENDAR_MAX_EVENTS=6
 SLATE_CALENDAR_DAYS_AHEAD=14
+SLATE_CALENDAR_HEADLINE=Upcoming events
 ```
 
 Use an IANA timezone such as `Europe/Amsterdam`. The provider requests events
 from now through the configured number of days ahead, up to the configured
-event limit. All-day events display as “All day”. The server refreshes its
-cached frame according to `SLATE_REFRESH_SECONDS` (60 seconds by default).
+event limit. `SLATE_CALENDAR_HEADLINE` controls the heading above the events;
+it defaults to “Upcoming events”. All-day events display as “All day”. The
+server refreshes its cached frame according to `SLATE_REFRESH_SECONDS` (60
+seconds by default).
 
 `SLATE_REQUIRE_HTTPS=false` is for the loopback browser preview only. A device
 deployment must use a reachable HTTPS endpoint with certificate validation
