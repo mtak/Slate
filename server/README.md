@@ -57,7 +57,7 @@ file and renders an updated frame on the next request; the open preview polls
 every five seconds and redraws when the frame changes. When running with
 Docker Compose, edit the host copy of `server/layout.json`.
 
-![Rendered sample frame from the editable layout](../docs/frame-preview.png)
+![Rendered sample frame from the editable layout with a fictional power reading of 483 W](../docs/frame-preview.png)
 
 ## Providers and layout keys
 
