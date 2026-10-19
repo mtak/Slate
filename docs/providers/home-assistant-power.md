@@ -14,7 +14,7 @@ three values in the ignored local `.env` file:
 ```dotenv
 SLATE_HOME_ASSISTANT_URL=https://home-assistant.example.invalid
 SLATE_HOME_ASSISTANT_TOKEN=<long-lived-access-token>
-SLATE_HOME_ASSISTANT_ENTITY=sensor.example_power
+SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY=sensor.example_power
 ```
 
 Use the base URL only (without `/api`), and replace the example hostname and

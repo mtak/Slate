@@ -113,8 +113,9 @@ Editing provider code requires restarting the server; editing only
 
 Home Assistant power is an optional integration alongside the selected main
 provider. Configure `SLATE_HOME_ASSISTANT_URL`, `SLATE_HOME_ASSISTANT_TOKEN`,
-and `SLATE_HOME_ASSISTANT_ENTITY` together to add a `power_watts` value. See
-the [Home Assistant power guide](../docs/providers/home-assistant-power.md).
+and `SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY` together to add a
+`power_watts` value. See the
+[Home Assistant power guide](../docs/providers/home-assistant-power.md).
 
 ## Provider guides
 

@@ -139,7 +139,7 @@ class HomeAssistantPowerProvider:
         if not token:
             raise ValueError("SLATE_HOME_ASSISTANT_TOKEN must not be empty")
         if not entity_id:
-            raise ValueError("SLATE_HOME_ASSISTANT_ENTITY must not be empty")
+            raise ValueError("SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY must not be empty")
         self.url = f"{base_url.rstrip('/')}/api/states/{quote(entity_id, safe='')}"
         self.token = token
 
@@ -170,13 +170,13 @@ def home_assistant_power_provider_from_environment() -> HomeAssistantPowerProvid
     """Create the optional Home Assistant integration when all settings exist."""
     base_url = os.environ.get("SLATE_HOME_ASSISTANT_URL")
     token = os.environ.get("SLATE_HOME_ASSISTANT_TOKEN")
-    entity_id = os.environ.get("SLATE_HOME_ASSISTANT_ENTITY")
+    entity_id = os.environ.get("SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY")
     if not any((base_url, token, entity_id)):
         return None
     if not all((base_url, token, entity_id)):
         raise ValueError(
             "SLATE_HOME_ASSISTANT_URL, SLATE_HOME_ASSISTANT_TOKEN, and "
-            "SLATE_HOME_ASSISTANT_ENTITY must be configured together"
+            "SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY must be configured together"
         )
     return HomeAssistantPowerProvider(base_url, token, entity_id)
 
