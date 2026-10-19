@@ -116,6 +116,9 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
 
         def render_frame():
             data = provider.get_data()
+            calendar_headline = os.environ.get("SLATE_CALENDAR_HEADLINE")
+            if calendar_headline:
+                data["headline"] = calendar_headline
             if home_assistant_power_provider:
                 data.update(home_assistant_power_provider.get_data())
             data.update(date_provider.get_data())
