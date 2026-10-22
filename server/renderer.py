@@ -191,12 +191,15 @@ class Renderer:
         normal_block = dict(block)
         normal_block["bold"] = False
         normal_block["font_weight"] = "regular"
-        amount_font, _ = Renderer._font(normal_block, Renderer._positive_int(block, "amount_size", 14))
-        time_font, _ = Renderer._font(normal_block, Renderer._positive_int(block, "time_size", 14))
+        amount_size = Renderer._positive_int(block, "amount_size", 14)
+        time_size = Renderer._positive_int(block, "time_size", 14)
+        amount_font, _ = Renderer._font(normal_block, amount_size)
+        time_font, _ = Renderer._font(normal_block, time_size)
         chance_block = dict(block)
         chance_block["bold"] = True
         chance_block["font_weight"] = "bold"
-        chance_font, _ = Renderer._font(chance_block, Renderer._positive_int(block, "chance_size", 22))
+        chance_size = Renderer._positive_int(block, "chance_size", 22)
+        chance_font, _ = Renderer._font(chance_block, chance_size)
         show_attribution = block.get("show_attribution", True)
         if not isinstance(show_attribution, bool):
             raise ValueError("forecast widget show_attribution must be a boolean")
@@ -230,12 +233,13 @@ class Renderer:
             cell_x = x + index * cell_width
             if index:
                 draw.line((round(cell_x), y, round(cell_x), y + height), fill=ink, width=1)
-            Renderer._draw_centered_text(draw, amount_text, amount_font, round(cell_x), y + 12,
+            Renderer._draw_centered_text(draw, amount_text, amount_font, round(cell_x), y + 5,
                                          round(cell_width), ink)
-            chance_y = y + (height - Renderer._positive_int(block, "chance_size", 22)) // 2 - 2
+            chance_y = y + (height - chance_size) // 2
             Renderer._draw_centered_text(draw, probability_text, chance_font, round(cell_x), chance_y,
                                          round(cell_width), ink)
-            Renderer._draw_centered_text(draw, entry["hour"], time_font, round(cell_x), y + height - 30,
+            time_y = y + height - time_size - 5
+            Renderer._draw_centered_text(draw, entry["hour"], time_font, round(cell_x), time_y,
                                          round(cell_width), ink)
 
     @staticmethod
