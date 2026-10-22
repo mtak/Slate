@@ -15,6 +15,7 @@ from providers import (
     DEFAULT_DATE_FORMAT,
     home_assistant_power_provider_from_environment,
     literal_text_providers_from_environment,
+    open_meteo_provider_from_environment,
     provider_from_environment,
 )
 from renderer import DEFAULT_LAYOUT_PATH, Renderer
@@ -111,8 +112,10 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
 
         provider = provider_from_environment()
         home_assistant_power_provider = home_assistant_power_provider_from_environment()
+        weather_provider = open_meteo_provider_from_environment()
         date_provider = CurrentDateProvider(os.environ.get("SLATE_DATE_FORMAT", DEFAULT_DATE_FORMAT))
         affirmation_provider = DailyAffirmationProvider()
+        warned_attribution_layouts = set()
 
         def render_frame():
             data = provider.get_data()
@@ -121,6 +124,7 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                 data["headline"] = calendar_headline
             if home_assistant_power_provider:
                 data.update(home_assistant_power_provider.get_data())
+            data.update(weather_provider.get_data())
             data.update(date_provider.get_data())
             data.update(affirmation_provider.get_data())
             for literal_text_provider in literal_text_providers_from_environment():
@@ -130,7 +134,19 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                     keys = ", ".join(sorted(conflicts))
                     raise ValueError(f"literal text keys conflict with built-in provider values: {keys}")
                 data.update(literal_text)
-            return Renderer.from_file(layout_file).render(data)
+            renderer = Renderer.from_file(layout_file)
+            attribution_disabled = any(
+                block.get("type") == "forecast_hours" and block.get("show_attribution", True) is False
+                for block in renderer.blocks
+            )
+            layout_signature = layout_file_signature()[0]
+            if attribution_disabled and layout_signature not in warned_attribution_layouts:
+                logging.warning(
+                    "Open-Meteo attribution is required by its CC BY 4.0 license; "
+                    "the layout disables the on-screen attribution"
+                )
+                warned_attribution_layouts.add(layout_signature)
+            return renderer.render(data)
 
         frame_provider = render_frame
         cache_key_provider = layout_file_signature

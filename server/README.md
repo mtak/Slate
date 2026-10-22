@@ -42,6 +42,7 @@ The layout supports these block types:
 | `calendar` | — | `x`, `y`, `width`, `height`, `stroke`, `outline`, `fill`, `ink`, `divider`, `weekday_size`, `day_size`, `month_size`, `weekday_key`, `day_key`, `month_key`, `font_family`, `font_weight` | Draw a calendar icon from `weekday`, `day`, and `month`. Defaults: position `(0, 0)`, size `120×140`, keys `weekday`/`day`/`month`, sizes `16`/`48`/`20`, black outline and divider. |
 | `events` | — | `key`, `x`, `y`, `count`, `row_height`, `title_size`, `detail_size`, `max_width`, `font_family`, `font_weight`, `ink` | Draw event titles, dates, and times. Defaults: key `events`, count `6`, row height `48`; `max_width` clips text with `...` at that pixel width. |
 | `power` | — | `key`, `label`, `x`, `y`, `width`, `height`, `label_size`, `value_size`, `stroke`, `outline`, `fill`, `ink`, `divider`, `font_family`, `font_weight` | Draw a power tile with a watt reading. Defaults: key `power_watts`, label `Power`, size `120×92`, sizes `16`/`20`; unavailable data is shown as “Unavailable”. |
+| `forecast_hours` | — | `key`, `x`, `y`, `width`, `height`, `amount_size`, `chance_size`, `time_size`, `show_attribution`, `attribution_size`, `unavailable_size`, `ink`, `font_family` | Draw a horizontal row of hourly cells with rain amount at the top, bold precipitation chance in the middle, and local time at the bottom. Defaults: key `precipitation_forecast`, size `330×168`; attribution is shown by default and can be toggled in the layout. |
 
 Text blocks accept `font_family` values `default`, `sans`, `serif`, or `mono`
 and `font_weight` values `regular` or `bold`. `default` preserves the original
@@ -144,6 +145,13 @@ provider. Configure `SLATE_HOME_ASSISTANT_URL`, `SLATE_HOME_ASSISTANT_TOKEN`,
 and `SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY` together to add a
 `power_watts` value. See the
 [Home Assistant power guide](../docs/providers/home-assistant-power.md).
+
+The default layout also displays hourly precipitation from Open-Meteo. Set
+`SLATE_WEATHER_LATITUDE`, `SLATE_WEATHER_LONGITUDE`,
+`SLATE_WEATHER_TIMEZONE`, and `SLATE_WEATHER_FORECAST_HOURS` to change its
+location, local hour labels, or forecast length. See the
+[Open-Meteo forecast guide](../docs/providers/open-meteo.md) for setup, API
+behavior, and attribution details.
 
 ## Provider guides
 
