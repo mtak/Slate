@@ -3,7 +3,7 @@
 import math
 import json
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from pathlib import Path
 from typing import Callable, Protocol
 from urllib.parse import quote
@@ -179,6 +179,109 @@ def home_assistant_power_provider_from_environment() -> HomeAssistantPowerProvid
             "SLATE_HOME_ASSISTANT_POWER_CONSUMPTION_ENTITY must be configured together"
         )
     return HomeAssistantPowerProvider(base_url, token, entity_id)
+
+
+class OpenMeteoProvider:
+    """Fetch a short hourly precipitation forecast from Open-Meteo."""
+
+    DEFAULT_LATITUDE = 52.04
+    DEFAULT_LONGITUDE = 4.33
+    DEFAULT_TIMEZONE = "Europe/Amsterdam"
+    DEFAULT_FORECAST_HOURS = 4
+    API_URL = "https://api.open-meteo.com/v1/forecast"
+
+    def __init__(self, latitude=DEFAULT_LATITUDE, longitude=DEFAULT_LONGITUDE,
+                 timezone_name=DEFAULT_TIMEZONE, forecast_hours=DEFAULT_FORECAST_HOURS,
+                 now: Callable[[], datetime] | None = None):
+        self.latitude = float(latitude)
+        self.longitude = float(longitude)
+        if not math.isfinite(self.latitude) or not -90 <= self.latitude <= 90:
+            raise ValueError("SLATE_WEATHER_LATITUDE must be between -90 and 90")
+        if not math.isfinite(self.longitude) or not -180 <= self.longitude <= 180:
+            raise ValueError("SLATE_WEATHER_LONGITUDE must be between -180 and 180")
+        self.timezone_name = timezone_name
+        self.timezone = ZoneInfo(timezone_name)
+        self.forecast_hours = int(forecast_hours)
+        if not 1 <= self.forecast_hours <= 24:
+            raise ValueError("SLATE_WEATHER_FORECAST_HOURS must be between 1 and 24")
+        self.now = now or (lambda: datetime.now(datetime_timezone.utc))
+
+    def _first_forecast_hour(self) -> datetime:
+        """Find the next local top-of-hour, including repeated DST hours."""
+        current = self.now().astimezone(datetime_timezone.utc)
+        candidate = current.replace(second=0, microsecond=0)
+        if candidate <= current:
+            candidate += timedelta(minutes=1)
+        for _ in range(61):
+            local = candidate.astimezone(self.timezone)
+            if local.minute == 0:
+                return candidate
+            candidate += timedelta(minutes=1)
+        raise ValueError("could not find the next local forecast hour")
+
+    def get_data(self) -> dict[str, object]:
+        try:
+            import requests
+
+            response = requests.get(
+                self.API_URL,
+                params={
+                    "latitude": self.latitude,
+                    "longitude": self.longitude,
+                    "hourly": "precipitation_probability,precipitation",
+                    "timezone": "UTC",
+                    "forecast_hours": self.forecast_hours + 2,
+                },
+                headers={"Accept": "application/json"},
+                timeout=10,
+            )
+            response.raise_for_status()
+            hourly = response.json()["hourly"]
+            times = hourly["time"]
+            probabilities = hourly["precipitation_probability"]
+            amounts = hourly["precipitation"]
+            if not (len(times) == len(probabilities) == len(amounts)):
+                raise ValueError("forecast arrays have different lengths")
+
+            by_time = {
+                datetime.fromisoformat(timestamp).replace(tzinfo=datetime_timezone.utc): (probability, amount)
+                for timestamp, probability, amount in zip(times, probabilities, amounts)
+            }
+            first = self._first_forecast_hour()
+            forecast = []
+            for index in range(self.forecast_hours):
+                slot = first + timedelta(hours=index)
+                values = by_time.get(slot)
+                if values is None:
+                    raise ValueError("forecast does not include all requested hours")
+                probability, amount = values
+                if probability is not None:
+                    probability = float(probability)
+                    if not math.isfinite(probability) or not 0 <= probability <= 100:
+                        raise ValueError("invalid precipitation probability")
+                if amount is not None:
+                    amount = float(amount)
+                    if not math.isfinite(amount) or amount < 0:
+                        raise ValueError("invalid precipitation amount")
+                forecast.append({
+                    "hour": slot.astimezone(self.timezone).strftime("%H:%M"),
+                    "probability": probability,
+                    "amount": amount,
+                })
+            return {"precipitation_forecast": forecast}
+        except Exception:
+            # Keep network and response details out of logs and the public frame.
+            return {"precipitation_forecast": None}
+
+
+def open_meteo_provider_from_environment() -> OpenMeteoProvider:
+    """Create the weather integration using optional local configuration."""
+    return OpenMeteoProvider(
+        os.environ.get("SLATE_WEATHER_LATITUDE", OpenMeteoProvider.DEFAULT_LATITUDE),
+        os.environ.get("SLATE_WEATHER_LONGITUDE", OpenMeteoProvider.DEFAULT_LONGITUDE),
+        os.environ.get("SLATE_WEATHER_TIMEZONE", OpenMeteoProvider.DEFAULT_TIMEZONE),
+        os.environ.get("SLATE_WEATHER_FORECAST_HOURS", OpenMeteoProvider.DEFAULT_FORECAST_HOURS),
+    )
 
 
 def _calendar_data(events: list[dict[str, str]], timezone: ZoneInfo) -> dict[str, object]:

@@ -24,8 +24,8 @@ particular home network or deployment platform.
 
 - [Server guide](server/README.md) — run the renderer, edit its sample layout,
   and add data providers.
-- [Provider guides](docs/providers/README.md) — configure the sample and Google
-  Calendar iCal providers, and learn about the daily affirmation.
+- [Provider guides](docs/providers/README.md) — configure calendar, weather,
+  home automation, and other data providers.
 - [Firmware guide](firmware/README.md) — configure, build, flash, and monitor
   the ESP32.
 - [Architecture and frame format](docs/architecture.md) — service boundaries,

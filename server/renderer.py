@@ -93,6 +93,8 @@ class Renderer:
             Renderer._draw_calendar(draw, block, data, x, y)
         elif kind == "power":
             Renderer._draw_power(draw, block, data, x, y)
+        elif kind == "forecast_hours":
+            Renderer._draw_forecast_hours(draw, block, data, x, y)
         elif kind == "events":
             events = data.get(block.get("key", "events"), [])
             if not isinstance(events, list):
@@ -177,6 +179,61 @@ class Renderer:
         Renderer._draw_centered_text(draw, label, label_font, x, y + 8, width, ink)
         reading = f"{value:,} W" if isinstance(value, int) and not isinstance(value, bool) else "Unavailable"
         Renderer._draw_centered_text(draw, reading, value_font, x, y + 42, width, ink)
+
+    @staticmethod
+    def _draw_forecast_hours(draw: ImageDraw.ImageDraw, block: Mapping, data: Mapping[str, object], x: int, y: int) -> None:
+        width, height = block.get("width", 330), block.get("height", 168)
+        if not isinstance(width, int) or width < 180 or not isinstance(height, int) or height < 48:
+            raise ValueError("forecast widget width must be at least 180 and height at least 48")
+        key = block.get("key", "precipitation_forecast")
+        forecast = data.get(key)
+        ink = Renderer._ink(block)
+        normal_block = dict(block)
+        normal_block["bold"] = False
+        normal_block["font_weight"] = "regular"
+        amount_font, _ = Renderer._font(normal_block, Renderer._positive_int(block, "amount_size", 14))
+        time_font, _ = Renderer._font(normal_block, Renderer._positive_int(block, "time_size", 14))
+        chance_block = dict(block)
+        chance_block["bold"] = True
+        chance_block["font_weight"] = "bold"
+        chance_font, _ = Renderer._font(chance_block, Renderer._positive_int(block, "chance_size", 22))
+        show_attribution = block.get("show_attribution", True)
+        if not isinstance(show_attribution, bool):
+            raise ValueError("forecast widget show_attribution must be a boolean")
+        if show_attribution:
+            attribution_font, _ = Renderer._font(
+                normal_block, Renderer._positive_int(block, "attribution_size", 8)
+            )
+            attribution = "Open-Meteo"
+            attribution_width = draw.textlength(attribution, font=attribution_font)
+            draw.text((x + width - attribution_width, y - 11), attribution,
+                      font=attribution_font, fill=ink)
+        draw.rectangle((x, y, x + width, y + height), outline=ink, width=1)
+
+        if not isinstance(forecast, list) or not forecast:
+            unavailable_font, _ = Renderer._font(block, Renderer._positive_int(block, "unavailable_size", 18))
+            Renderer._draw_centered_text(draw, "Forecast unavailable", unavailable_font,
+                                         x, y + (height - 24) // 2, width, ink)
+            return
+
+        count = min(len(forecast), max(1, width // 64))
+        cell_width = width / count
+        for index, entry in enumerate(forecast[:count]):
+            if not isinstance(entry, Mapping) or not isinstance(entry.get("hour"), str):
+                raise ValueError("forecast widget entries must include an hour")
+            probability, amount = entry.get("probability"), entry.get("amount")
+            probability_text = "—" if probability is None else f"{round(float(probability))}%"
+            amount_text = "—" if amount is None else f"{float(amount):.1f} mm"
+            cell_x = x + index * cell_width
+            if index:
+                draw.line((round(cell_x), y, round(cell_x), y + height), fill=ink, width=1)
+            Renderer._draw_centered_text(draw, amount_text, amount_font, round(cell_x), y + 12,
+                                         round(cell_width), ink)
+            chance_y = y + (height - Renderer._positive_int(block, "chance_size", 22)) // 2 - 2
+            Renderer._draw_centered_text(draw, probability_text, chance_font, round(cell_x), chance_y,
+                                         round(cell_width), ink)
+            Renderer._draw_centered_text(draw, entry["hour"], time_font, round(cell_x), y + height - 30,
+                                         round(cell_width), ink)
 
     @staticmethod
     def _truncate_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> str:
