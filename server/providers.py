@@ -188,12 +188,11 @@ class OpenMeteoProvider:
     DEFAULT_LONGITUDE = 4.33
     DEFAULT_TIMEZONE = "Europe/Amsterdam"
     DEFAULT_FORECAST_HOURS = 4
-    DEFAULT_FORECAST_DAYS = 4
     API_URL = "https://api.open-meteo.com/v1/forecast"
 
     def __init__(self, latitude=DEFAULT_LATITUDE, longitude=DEFAULT_LONGITUDE,
                  timezone_name=DEFAULT_TIMEZONE, forecast_hours=DEFAULT_FORECAST_HOURS,
-                 now: Callable[[], datetime] | None = None, forecast_days=DEFAULT_FORECAST_DAYS):
+                 now: Callable[[], datetime] | None = None):
         self.latitude = float(latitude)
         self.longitude = float(longitude)
         if not math.isfinite(self.latitude) or not -90 <= self.latitude <= 90:
@@ -205,9 +204,6 @@ class OpenMeteoProvider:
         self.forecast_hours = int(forecast_hours)
         if not 1 <= self.forecast_hours <= 24:
             raise ValueError("SLATE_WEATHER_FORECAST_HOURS must be between 1 and 24")
-        self.forecast_days = int(forecast_days)
-        if not 1 <= self.forecast_days <= 7:
-            raise ValueError("SLATE_WEATHER_FORECAST_DAYS must be between 1 and 7")
         self.now = now or (lambda: datetime.now(datetime_timezone.utc))
 
     def _first_forecast_hour(self) -> datetime:
@@ -233,10 +229,8 @@ class OpenMeteoProvider:
                     "latitude": self.latitude,
                     "longitude": self.longitude,
                     "hourly": "precipitation_probability,precipitation",
-                    "daily": "precipitation_probability_max,precipitation_sum",
                     "timezone": "UTC",
                     "forecast_hours": self.forecast_hours + 2,
-                    "forecast_days": self.forecast_days,
                 },
                 headers={"Accept": "application/json"},
                 timeout=10,
@@ -274,38 +268,10 @@ class OpenMeteoProvider:
                     "probability": probability,
                     "amount": amount,
                 })
-            daily = response.json()["daily"]
-            daily_times = daily["time"]
-            daily_probabilities = daily["precipitation_probability_max"]
-            daily_amounts = daily["precipitation_sum"]
-            if not (len(daily_times) == len(daily_probabilities) == len(daily_amounts)) or len(daily_times) < self.forecast_days:
-                raise ValueError("daily forecast arrays have different lengths")
-            daily_forecast = []
-            for timestamp, probability, amount in zip(
-                daily_times[:self.forecast_days],
-                daily_probabilities[:self.forecast_days],
-                daily_amounts[:self.forecast_days],
-            ):
-                if probability is not None:
-                    probability = float(probability)
-                    if not math.isfinite(probability) or not 0 <= probability <= 100:
-                        raise ValueError("invalid daily precipitation probability")
-                if amount is not None:
-                    amount = float(amount)
-                    if not math.isfinite(amount) or amount < 0:
-                        raise ValueError("invalid daily precipitation amount")
-                daily_forecast.append({
-                    "day": datetime.fromisoformat(timestamp).strftime("%a"),
-                    "probability": probability,
-                    "amount": amount,
-                })
-            return {
-                "precipitation_forecast": forecast,
-                "precipitation_daily_forecast": daily_forecast,
-            }
+            return {"precipitation_forecast": forecast}
         except Exception:
             # Keep network and response details out of logs and the public frame.
-            return {"precipitation_forecast": None, "precipitation_daily_forecast": None}
+            return {"precipitation_forecast": None}
 
 
 def open_meteo_provider_from_environment() -> OpenMeteoProvider:
@@ -315,7 +281,6 @@ def open_meteo_provider_from_environment() -> OpenMeteoProvider:
         os.environ.get("SLATE_WEATHER_LONGITUDE", OpenMeteoProvider.DEFAULT_LONGITUDE),
         os.environ.get("SLATE_WEATHER_TIMEZONE", OpenMeteoProvider.DEFAULT_TIMEZONE),
         os.environ.get("SLATE_WEATHER_FORECAST_HOURS", OpenMeteoProvider.DEFAULT_FORECAST_HOURS),
-        forecast_days=os.environ.get("SLATE_WEATHER_FORECAST_DAYS", OpenMeteoProvider.DEFAULT_FORECAST_DAYS),
     )
 
 
