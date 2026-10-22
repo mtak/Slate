@@ -86,7 +86,7 @@ command. Power displays “Unavailable” until a Home Assistant power source is
 configured. The sample below uses a fictional 483 W reading. It renders through
 the same `Renderer` and 1-bit frame conversion used by the device endpoint:
 
-![Nightwave example rendered as an 800 by 480 monochrome frame](../docs/nightwave-preview.png)
+![Groeneveld Nightwave example rendered as an 800 by 480 monochrome frame](../docs/nightwave-preview.png)
 
 ![Rendered sample frame from the editable layout with a fictional power reading of 483 W](../docs/frame-preview.png)
 
