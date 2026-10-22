@@ -12,7 +12,7 @@ when that URL is configured.
 | Literal text | [Literal text provider](literal-text.md) | None |
 | Google Calendar iCal feed | [Google Calendar iCal feed](google-calendar-ical.md) | Secret HTTPS feed URL in local `.env` |
 | Home Assistant power | [Home Assistant power](home-assistant-power.md) | Long-lived access token in local `.env` |
-| Hourly and daily precipitation | [Open-Meteo forecast](open-meteo.md) | None for non-commercial use |
+| Hourly precipitation | [Open-Meteo forecast](open-meteo.md) | None for non-commercial use |
 
 Every provider returns named values through `get_data()`. The renderer uses
 these values with the editable [`server/layout.json`](../../server/layout.json)
