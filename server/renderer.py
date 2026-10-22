@@ -95,6 +95,8 @@ class Renderer:
             Renderer._draw_power(draw, block, data, x, y)
         elif kind == "forecast_hours":
             Renderer._draw_forecast_hours(draw, block, data, x, y)
+        elif kind == "forecast_days":
+            Renderer._draw_forecast_days(draw, block, data, x, y)
         elif kind == "events":
             events = data.get(block.get("key", "events"), [])
             if not isinstance(events, list):
@@ -234,6 +236,39 @@ class Renderer:
                                          round(cell_width), ink)
             Renderer._draw_centered_text(draw, entry["hour"], time_font, round(cell_x), y + height - 30,
                                          round(cell_width), ink)
+
+    @staticmethod
+    def _draw_forecast_days(draw: ImageDraw.ImageDraw, block: Mapping, data: Mapping[str, object], x: int, y: int) -> None:
+        width, height = block.get("width", 352), block.get("height", 52)
+        if not isinstance(width, int) or width < 180 or not isinstance(height, int) or height < 48:
+            raise ValueError("daily forecast widget width must be at least 180 and height at least 48")
+        forecast = data.get(block.get("key", "precipitation_daily_forecast"))
+        ink = Renderer._ink(block)
+        draw.rectangle((x, y, x + width, y + height), outline=ink, width=1)
+        if not isinstance(forecast, list) or not forecast:
+            unavailable_font, _ = Renderer._font(block, 14)
+            Renderer._draw_centered_text(draw, "Forecast unavailable", unavailable_font, x, y + 10, width, ink)
+            return
+        columns = block.get("columns", max(1, width // 64))
+        if not isinstance(columns, int) or columns < 1:
+            raise ValueError("daily forecast columns must be a positive integer")
+        count = min(len(forecast), columns)
+        cell_width = width / count
+        for index, entry in enumerate(forecast[:count]):
+            if not isinstance(entry, Mapping) or not isinstance(entry.get("day"), str):
+                raise ValueError("daily forecast entries must include a day")
+            probability, amount = entry.get("probability"), entry.get("amount")
+            label = "—" if amount is None else f"{float(amount):.1f}mm"
+            chance = "—" if probability is None else f"{round(float(probability))}%"
+            cell_x = round(x + index * cell_width)
+            cell_size = round(cell_width)
+            if index:
+                draw.line((cell_x, y, cell_x, y + height), fill=ink, width=1)
+            day_font, _ = Renderer._font(block, Renderer._positive_int(block, "day_size", 12))
+            amount_font, _ = Renderer._font(block, Renderer._positive_int(block, "amount_size", 12))
+            Renderer._draw_centered_text(draw, entry["day"], day_font, cell_x, y + 2, cell_size, ink)
+            Renderer._draw_centered_text(draw, label, amount_font, cell_x, y + 23, cell_size, ink)
+            Renderer._draw_centered_text(draw, chance, amount_font, cell_x, y + 43, cell_size, ink)
 
     @staticmethod
     def _truncate_text(draw: ImageDraw.ImageDraw, value: str, font: ImageFont.ImageFont, max_width: int) -> str:

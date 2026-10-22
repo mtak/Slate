@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime, timezone
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 
 from app import FRAME_PATH, PREVIEW_PATH, create_server
 from frame import (
@@ -70,17 +71,18 @@ class FrameContractTests(unittest.TestCase):
         data.update(CurrentDateProvider().get_data())
         data.update(DailyAffirmationProvider().get_data())
         expected = Renderer.from_file().render(data)
-        server = create_server(port=0, device_token=DEVICE_TOKEN)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
-            with urlopen(Request(url, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
-                self.assertEqual(response.read(), expected)
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join()
+        with patch("requests.get", side_effect=OSError("network disabled in test")):
+            server = create_server(port=0, device_token=DEVICE_TOKEN)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_address[1]}{FRAME_PATH}"
+                with urlopen(Request(url, headers={"Authorization": "Bearer " + DEVICE_TOKEN})) as response:
+                    self.assertEqual(response.read(), expected)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
 
     def test_conditional_request_uses_stable_etag_and_returns_304(self):
         frame = sample_frame()

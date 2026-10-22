@@ -1,15 +1,13 @@
-# Open-Meteo hourly precipitation forecast
+# Open-Meteo precipitation forecasts
 
-Slate fetches hourly precipitation probability and amount from the Open-Meteo
-forecast API. The default location is Rijswijk, The Netherlands. Each forecast
-row shows the local hour, chance of precipitation, and precipitation amount in
-millimeters. The default window shows the next four local hourly entries,
-starting at the next full hour.
+Slate fetches hourly and daily precipitation probability and amounts from the
+Open-Meteo forecast API. The default location is Rijswijk, The Netherlands.
+The standard layout shows the next four hours. The Nightwave layout shows four
+days, with each cell displaying the day, maximum chance, and precipitation
+total in millimeters.
 
-The values are for the hour ending at the displayed time: Open-Meteo reports
-precipitation probability and total precipitation for the preceding hour. The
-amount includes rain, showers, and snow. If the request fails or the response
-does not contain every requested hour, the display says “Forecast unavailable”.
+The amount includes rain, showers, and snow. If the request fails or the
+response is incomplete, the display says “Forecast unavailable”.
 
 ## Configure the location and window
 
@@ -19,19 +17,13 @@ Set these variables in the local `.env` file or deployment environment:
 | --- | --- | --- |
 | `SLATE_WEATHER_LATITUDE` | `52.04` | Latitude in decimal degrees |
 | `SLATE_WEATHER_LONGITUDE` | `4.33` | Longitude in decimal degrees |
-| `SLATE_WEATHER_TIMEZONE` | `Europe/Amsterdam` | IANA timezone used for hour labels and the next-hour boundary |
-| `SLATE_WEATHER_FORECAST_HOURS` | `4` | Number of future hourly entries to show (1–24) |
+| `SLATE_WEATHER_TIMEZONE` | `Europe/Amsterdam` | IANA timezone used for forecast labels |
+| `SLATE_WEATHER_FORECAST_HOURS` | `4` | Number of hourly entries to show (1–24) |
+| `SLATE_WEATHER_FORECAST_DAYS` | `4` | Number of daily entries to show (1–7) |
 
-The default layout uses the `forecast_hours` block with the provider key
-`precipitation_forecast`. The amount, chance, and time text sizes are configured
-independently with `amount_size`, `chance_size`, and `time_size` in the layout
-JSON. Open-Meteo attribution is enabled by default; `attribution_size` defaults
-to 8 pixels. Set `show_attribution` to `false` to hide it on screen. The server
-logs a warning when attribution is disabled. Move, resize, or remove the block in
-`server/layout.json` to change the display. The renderer keeps the forecast in
-the same 800×480, 1-bit frame as the rest of the layout. If the configured
-forecast has more entries than fit across the block, increase its width and
-move nearby blocks as needed.
+The `forecast_hours` block uses `precipitation_forecast`; `forecast_days` uses
+`precipitation_daily_forecast`. The Nightwave layout sets four columns in its
+left panel. Adjust `day_size` and `amount_size` in the layout JSON as needed.
 
 No API key is needed for Open-Meteo's free non-commercial service. Its data is
 licensed under CC BY 4.0 and requires attribution. Disabling the on-screen

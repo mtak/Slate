@@ -136,7 +136,8 @@ def create_handler(frame_provider=None, refresh_seconds=DEFAULT_REFRESH_SECONDS,
                 data.update(literal_text)
             renderer = Renderer.from_file(layout_file)
             attribution_disabled = any(
-                block.get("type") == "forecast_hours" and block.get("show_attribution", True) is False
+                block.get("type") in ("forecast_hours", "forecast_days")
+                and block.get("show_attribution", True) is False
                 for block in renderer.blocks
             )
             layout_signature = layout_file_signature()[0]
